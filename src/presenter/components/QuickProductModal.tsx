@@ -1,0 +1,72 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Modal, TextInput, Alert } from 'react-native';
+import { AppButton } from './AppButton';
+import { FormLayout } from './FormLayout';
+import { useAppTheme } from '../../core/contexts/ThemeContext';
+
+interface QuickProductModalProps {
+    visible: boolean;
+    onClose: () => void;
+    onAdd: (product: any) => Promise<void>;
+}
+
+export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModalProps) {
+    const [name, setName] = useState('');
+    const [buyPrice, setBuyPrice] = useState('');
+    const [sellPrice, setSellPrice] = useState('');
+    const { colors, isDark } = useAppTheme();
+
+    const handleSave = async () => {
+        if (!name || !buyPrice || !sellPrice) {
+            Alert.alert('Error', 'Please fill required fields');
+            return;
+        }
+        await onAdd({
+            name,
+            category: 'Others',
+            buy_price: parseFloat(buyPrice),
+            sell_price: parseFloat(sellPrice),
+            quantity: 0,
+            notes: 'Quick manual add'
+        });
+        onClose();
+        setName('');
+        setBuyPrice('');
+        setSellPrice('');
+    };
+
+    return (
+        <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+            <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+                <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>Manual Entry</Text>
+                    <AppButton title="✕" type="ghost" onPress={onClose} />
+                </View>
+                <Text style={[styles.label, { color: colors.textMuted }]}>PRODUCT NAME</Text>
+                <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="Product Name" placeholderTextColor={colors.textMuted} value={name} onChangeText={setName} />
+                
+                <View style={styles.row}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.label, { color: colors.textMuted }]}>BUY PRICE</Text>
+                        <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0" placeholderTextColor={colors.textMuted} value={buyPrice} onChangeText={setBuyPrice} keyboardType="numeric" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.label, { color: colors.textMuted }]}>SELL PRICE</Text>
+                        <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0" placeholderTextColor={colors.textMuted} value={sellPrice} onChangeText={setSellPrice} keyboardType="numeric" />
+                    </View>
+                </View>
+                
+                <AppButton title="Create Product" onPress={handleSave} style={{ marginTop: 20 }} />
+            </FormLayout>
+        </Modal>
+    );
+}
+
+const styles = StyleSheet.create({
+    modalContainer: { padding: 24, paddingTop: 60 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
+    modalTitle: { fontSize: 24, fontWeight: '900' },
+    label: { fontSize: 10, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
+    input: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16, marginBottom: 20 },
+    row: { flexDirection: 'row', gap: 16 }
+});

@@ -1,0 +1,162 @@
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { ProductRepository, ShipmentRepository, SaleRepository, PaymentRepository, ManualReportRepository, ExpenseRepository } from '../data/repositories';
+import { Product, Shipment, ShipmentItem, Sale, Payment, ManualReport, Expense } from '../domain/models';
+
+const productRepo = new ProductRepository();
+const shipmentRepo = new ShipmentRepository();
+const saleRepo = new SaleRepository();
+const paymentRepo = new PaymentRepository();
+const reportRepo = new ManualReportRepository();
+const expenseRepo = new ExpenseRepository();
+
+// Global State Singleton to ensure consistency across screens
+let globalProducts: Product[] = [];
+let globalShipments: Shipment[] = [];
+let globalSales: Sale[] = [];
+let globalPayments: Payment[] = [];
+let globalReports: ManualReport[] = [];
+let globalExpenses: Expense[] = [];
+let listeners: Array<() => void> = [];
+
+const notifyListeners = () => listeners.forEach(l => l());
+
+export const useStore = () => {
+    const [, setDummy] = useState({});
+
+    // Sync local state with global state
+    const forceUpdate = useCallback(() => setDummy({}), []);
+
+    useEffect(() => {
+        listeners.push(forceUpdate);
+        // Initial load if empty
+        if (globalProducts.length === 0) {
+            refreshAll();
+        }
+        return () => {
+            listeners = listeners.filter(l => l !== forceUpdate);
+        };
+    }, [forceUpdate]);
+
+    const refreshAll = useCallback(() => {
+        globalProducts = productRepo.getProducts();
+        globalShipments = shipmentRepo.getShipments();
+        globalSales = saleRepo.getSales();
+        globalPayments = paymentRepo.getPayments();
+        globalReports = reportRepo.getReports();
+        globalExpenses = expenseRepo.getExpenses();
+        notifyListeners();
+    }, []);
+
+    const addProduct = async (product: Omit<Product, 'id'>) => {
+        productRepo.addProduct(product);
+        refreshAll();
+    };
+
+    const updateProduct = async (product: Product) => {
+        productRepo.updateProduct(product);
+        refreshAll();
+    };
+
+    const deleteProduct = async (id: number) => {
+        productRepo.deleteProduct(id);
+        refreshAll();
+    };
+
+    const addShipment = async (date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) => {
+        shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
+        refreshAll();
+    };
+
+    const addSale = async (productId: number, date: string, quantity: number, sellPrice: number) => {
+        const product = globalProducts.find(p => p.id === productId);
+        const buyPrice = product?.buy_price || 0;
+        saleRepo.addSale(productId, date, quantity, buyPrice, sellPrice);
+        refreshAll();
+    };
+
+    const addPayment = async (amount: number, date: string, notes: string) => {
+        paymentRepo.addPayment(amount, date, notes);
+        refreshAll();
+    };
+
+    const addManualReport = async (title: string, content: string) => {
+        reportRepo.addReport(title, content, new Date().toISOString());
+        refreshAll();
+    };
+
+    const deleteManualReport = async (id: number) => {
+        reportRepo.deleteReport(id);
+        refreshAll();
+    };
+    
+    const addExpense = async (amount: number, description: string) => {
+        expenseRepo.addExpense(amount, new Date().toISOString(), description);
+        refreshAll();
+    };
+
+    const deleteExpense = async (id: number) => {
+        expenseRepo.deleteExpense(id);
+        refreshAll();
+    };
+
+    // Logical Business Calculations
+    const stats = useMemo(() => {
+        const totalSalesRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
+        const totalCostOfGoodsSold = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
+        const totalExpenses = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
+        const netProfit = totalSalesRevenue - totalCostOfGoodsSold - totalExpenses;
+        
+        const totalInventoryValue = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
+        const potentialRevenue = globalProducts.reduce((acc, p) => acc + (p.sell_price * p.quantity), 0);
+        const potentialProfit = potentialRevenue - totalInventoryValue;
+
+        const totalShippingFees = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
+        const totalPayments = globalPayments.reduce((acc, p) => acc + p.amount, 0);
+
+        return {
+            totalSalesRevenue,
+            totalCostOfGoodsSold,
+            netProfit,
+            totalInventoryValue,
+            potentialRevenue,
+            potentialProfit,
+            totalShippingFees,
+            totalPayments,
+            totalExpenses,
+            profitMargin: totalSalesRevenue > 0 ? (netProfit / totalSalesRevenue) * 100 : 0
+        };
+    }, [globalSales, globalProducts, globalShipments, globalPayments, globalExpenses]);
+
+    return {
+        products: globalProducts,
+        shipments: globalShipments,
+        sales: globalSales,
+        payments: globalPayments,
+        manualReports: globalReports,
+        expenses: globalExpenses,
+        stats,
+        refreshAll,
+        addProduct,
+        updateProduct,
+        addShipment,
+        addSale,
+        addPayment,
+        addManualReport,
+        deleteManualReport,
+        addExpense,
+        deleteExpense,
+        deleteProduct,
+        deleteShipment: (id: number) => {
+            shipmentRepo.deleteShipment(id);
+            refreshAll();
+        },
+        deleteSale: (id: number) => {
+            saleRepo.deleteSale(id);
+            refreshAll();
+        },
+        shipmentRepo,
+        productRepo,
+        getProductShipments: (productId: number) => productRepo.getProductShipments(productId),
+        getProductSales: (productId: number) => productRepo.getProductSales(productId),
+    };
+}
