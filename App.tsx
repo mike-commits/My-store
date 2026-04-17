@@ -29,9 +29,6 @@ function HomeTabs() {
                 tabBarStyle: {
                     backgroundColor: colors.primary,
                     borderTopWidth: 0,
-                    height: 90,
-                    paddingTop: 12,
-                    paddingBottom: 28,
                     borderTopLeftRadius: 24,
                     borderTopRightRadius: 24,
                     elevation: 10,
@@ -39,10 +36,6 @@ function HomeTabs() {
                     shadowOffset: { width: 0, height: -4 },
                     shadowOpacity: 0.15,
                     shadowRadius: 8,
-                },
-                tabBarItemStyle: {
-                    justifyContent: 'flex-start',
-                    alignItems: 'center',
                 },
                 tabBarLabelStyle: {
                     fontSize: 10,
