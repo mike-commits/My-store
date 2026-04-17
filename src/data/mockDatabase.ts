@@ -11,17 +11,21 @@ let webStore: Record<string, any[]> = {
 };
 
 try {
-    const saved = localStorage.getItem(STORE_KEY);
-    if (saved) webStore = JSON.parse(saved);
+    if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(STORE_KEY);
+        if (saved) webStore = JSON.parse(saved);
+    }
 } catch (e) {
-    console.error("Failed to load web store from localStorage", e);
+    console.warn("Failed to load web store from localStorage", e);
 }
 
 const saveWebStore = () => {
     try {
-        localStorage.setItem(STORE_KEY, JSON.stringify(webStore));
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(STORE_KEY, JSON.stringify(webStore));
+        }
     } catch (e) {
-        console.error("Failed to save web store to localStorage", e);
+        console.warn("Failed to save web store to localStorage", e);
     }
 };
 
@@ -35,7 +39,7 @@ export const mockDb = {
     
     if (sqlLower.includes('insert into products')) {
         const id = Date.now();
-        webStore.products.push({ id, name: params[0], category: params[1], buy_price: params[2], sell_price: params[3], quantity: params[4], notes: params[5] });
+        webStore.products.push({ id, name: params[0], category: params[1], buy_price: params[2], sell_price: params[3], quantity: params[4], notes: params[5], date: params[6] });
         saveWebStore();
         return { lastInsertRowId: id };
     }
@@ -63,6 +67,13 @@ export const mockDb = {
         webStore.manual_reports.push({ id: Date.now(), date: params[0], title: params[1], content: params[2] });
         saveWebStore();
     }
+    if (sqlLower.includes('update manual_reports')) {
+        const idx = webStore.manual_reports.findIndex(x => x.id === params[3]);
+        if (idx !== -1) {
+            webStore.manual_reports[idx] = { ...webStore.manual_reports[idx], title: params[0], content: params[1], date: params[2] };
+            saveWebStore();
+        }
+    }
     if (sqlLower.includes('insert into expenses')) {
         webStore.expenses.push({ id: Date.now(), amount: params[0], date: params[1], description: params[2] });
         saveWebStore();
@@ -77,9 +88,9 @@ export const mockDb = {
         if (p) p.quantity -= params[0];
         saveWebStore();
     } else if (sqlLower.includes('update products set')) {
-        const index = webStore.products.findIndex(x => x.id === params[6]);
+        const index = webStore.products.findIndex(x => x.id === params[7]);
         if (index !== -1) {
-            webStore.products[index] = { ...webStore.products[index], name: params[0], category: params[1], buy_price: params[2], sell_price: params[3], quantity: params[4], notes: params[5] };
+            webStore.products[index] = { ...webStore.products[index], name: params[0], category: params[1], buy_price: params[2], sell_price: params[3], quantity: params[4], notes: params[5], date: params[6] };
             saveWebStore();
         }
     }

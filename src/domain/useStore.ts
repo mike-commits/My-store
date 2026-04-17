@@ -47,12 +47,29 @@ export const useStore = () => {
         notifyListeners();
     }, []);
 
+    const getAvailableCash = () => {
+        const totalPay = globalPayments.reduce((acc, p) => acc + p.amount, 0);
+        const totalExp = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
+        const totalShip = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
+        const totalInv = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
+        const totalCogs = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
+        return totalPay - totalExp - totalShip - totalInv - totalCogs;
+    };
+
     const addProduct = async (product: Omit<Product, 'id'>) => {
+        const cost = product.buy_price * product.quantity;
+        const available = getAvailableCash();
+        if (cost > available) throw new Error(`Insufficient funds in shop! Required: SSP ${cost.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
         productRepo.addProduct(product);
         refreshAll();
     };
 
     const updateProduct = async (product: Product) => {
+        const oldProduct = globalProducts.find(p => p.id === product.id);
+        const oldCost = oldProduct ? (oldProduct.buy_price * oldProduct.quantity) : 0;
+        const newCost = product.buy_price * product.quantity;
+        const available = getAvailableCash();
+        if (newCost - oldCost > available) throw new Error(`Insufficient funds for this update! Required: SSP ${(newCost - oldCost).toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
         productRepo.updateProduct(product);
         refreshAll();
     };
@@ -63,6 +80,15 @@ export const useStore = () => {
     };
 
     const addShipment = async (date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) => {
+        let itemsCost = 0;
+        for (const item of items) {
+            const p = globalProducts.find(x => x.id === item.product_id);
+            if (p) itemsCost += p.buy_price * item.quantity;
+        }
+        const totalCost = itemsCost + shippingCost;
+        const available = getAvailableCash();
+        if (totalCost > available) throw new Error(`Insufficient funds for shipment! Required: SSP ${totalCost.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
+
         shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
         refreshAll();
     };
@@ -79,8 +105,18 @@ export const useStore = () => {
         refreshAll();
     };
 
-    const addManualReport = async (title: string, content: string) => {
-        reportRepo.addReport(title, content, new Date().toISOString());
+    const deletePayment = async (id: number) => {
+        paymentRepo.deletePayment(id);
+        refreshAll();
+    };
+
+    const updatePayment = async (id: number, amount: number, date: string, notes: string) => {
+        paymentRepo.updatePayment(id, amount, new Date(date).toISOString(), notes);
+        refreshAll();
+    };
+
+    const addManualReport = async (title: string, content: string, dateOption?: string) => {
+        reportRepo.addReport(title, content, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString());
         refreshAll();
     };
 
@@ -88,14 +124,30 @@ export const useStore = () => {
         reportRepo.deleteReport(id);
         refreshAll();
     };
+
+    const updateManualReport = async (id: number, title: string, content: string, date: string) => {
+        reportRepo.updateReport(id, title, content, new Date(date).toISOString());
+        refreshAll();
+    };
     
-    const addExpense = async (amount: number, description: string) => {
-        expenseRepo.addExpense(amount, new Date().toISOString(), description);
+    const addExpense = async (amount: number, description: string, dateOption?: string) => {
+        const available = getAvailableCash();
+        if (amount > available) throw new Error(`Insufficient funds for expense! Required: SSP ${amount.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
+        expenseRepo.addExpense(amount, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString(), description);
         refreshAll();
     };
 
     const deleteExpense = async (id: number) => {
         expenseRepo.deleteExpense(id);
+        refreshAll();
+    };
+
+    const updateExpense = async (id: number, amount: number, description: string, date: string) => {
+        const oldExp = globalExpenses.find(e => e.id === id);
+        const oldAmt = oldExp ? oldExp.amount : 0;
+        const available = getAvailableCash();
+        if (amount - oldAmt > available) throw new Error(`Insufficient funds to increase expense! Required: SSP ${(amount - oldAmt).toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
+        expenseRepo.updateExpense(id, amount, new Date(date).toISOString(), description);
         refreshAll();
     };
 
@@ -112,6 +164,7 @@ export const useStore = () => {
 
         const totalShippingFees = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
         const totalPayments = globalPayments.reduce((acc, p) => acc + p.amount, 0);
+        const availableCash = getAvailableCash();
 
         return {
             totalSalesRevenue,
@@ -123,6 +176,7 @@ export const useStore = () => {
             totalShippingFees,
             totalPayments,
             totalExpenses,
+            availableCash,
             profitMargin: totalSalesRevenue > 0 ? (netProfit / totalSalesRevenue) * 100 : 0
         };
     }, [globalSales, globalProducts, globalShipments, globalPayments, globalExpenses]);
@@ -142,9 +196,14 @@ export const useStore = () => {
         addSale,
         addPayment,
         addManualReport,
+        updateManualReport,
         deleteManualReport,
+        addPayment,
+        deletePayment,
+        updatePayment,
         addExpense,
         deleteExpense,
+        updateExpense,
         deleteProduct,
         deleteShipment: (id: number) => {
             shipmentRepo.deleteShipment(id);

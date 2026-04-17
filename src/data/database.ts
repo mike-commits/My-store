@@ -36,7 +36,8 @@ export const initDb = () => {
         buy_price REAL NOT NULL,
         sell_price REAL NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 0,
-        notes TEXT
+        notes TEXT,
+        date TEXT
       );
       CREATE TABLE IF NOT EXISTS shipments (
         id INTEGER PRIMARY KEY NOT NULL,
@@ -87,6 +88,7 @@ export const initDb = () => {
     try { db.execSync('ALTER TABLE shipments ADD COLUMN description TEXT;'); } catch (e) {}
     try { db.execSync('ALTER TABLE shipments ADD COLUMN weight_kg REAL;'); } catch (e) {}
     try { db.execSync('ALTER TABLE sales ADD COLUMN buy_price REAL DEFAULT 0;'); } catch (e) {}
+    try { db.execSync('ALTER TABLE products ADD COLUMN date TEXT;'); } catch (e) {}
 
   } catch (e) {
     console.error("Database initialization failed:", e);

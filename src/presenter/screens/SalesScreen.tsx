@@ -18,6 +18,7 @@ export function SalesScreen() {
     const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
     const [quantity, setQuantity] = useState('');
     const [sellPriceOverride, setSellPriceOverride] = useState('');
+    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
 
     useEffect(() => {
         refreshAll();
@@ -40,7 +41,7 @@ export function SalesScreen() {
         try {
             await addSale(
                 selectedProductId, 
-                new Date().toISOString(), 
+                new Date(dateInput).toISOString(), 
                 parseInt(quantity, 10), 
                 parseFloat(sellPriceOverride)
             );
@@ -48,6 +49,7 @@ export function SalesScreen() {
             setModalVisible(false);
             setQuantity('');
             setSelectedProductId(null);
+            setDateInput(new Date().toISOString().split('T')[0]);
             Alert.alert('Success', 'Sale recorded successfully');
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to record sale');
@@ -144,6 +146,18 @@ export function SalesScreen() {
                                 keyboardType="numeric" 
                             />
                         </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                            <TextInput 
+                                style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
+                                placeholder="YYYY-MM-DD" 
+                                placeholderTextColor={colors.textMuted}
+                                value={dateInput} 
+                                onChangeText={setDateInput} 
+                            />
+                        </View>
+                    </View>
+                    <View style={styles.form}>
                         <View style={styles.inputGroup}>
                             <Text style={[styles.label, { color: colors.textMuted }]}>UNIT PRICE (SSP)</Text>
                             <TextInput 

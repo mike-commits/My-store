@@ -16,4 +16,9 @@ export class ManualReportRepository {
         const db = getDb();
         db.runSync('DELETE FROM manual_reports WHERE id = ?', [id]);
     }
+
+    updateReport(id: number, title: string, content: string, date: string) {
+        const db = getDb();
+        db.runSync('UPDATE manual_reports SET title = ?, content = ?, date = ? WHERE id = ?', [title, content, date, id]);
+    }
 }

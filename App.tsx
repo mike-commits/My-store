@@ -12,6 +12,7 @@ import { ReportsScreen } from './src/presenter/screens/ReportsScreen';
 import { ProductDetailsScreen } from './src/presenter/screens/ProductDetailsScreen';
 import { initDb } from './src/data/database';
 import { ThemeProvider, useAppTheme } from './src/core/contexts/ThemeContext';
+import { Feather } from '@expo/vector-icons';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -21,33 +22,55 @@ function HomeTabs() {
     return (
         <Tab.Navigator 
             screenOptions={{ 
-                headerShown: false, 
+                headerShown: false,
                 tabBarActiveTintColor: '#FFFFFF',
                 tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
+                tabBarShowLabel: true,
                 tabBarStyle: {
                     backgroundColor: colors.primary,
                     borderTopWidth: 0,
-                    paddingBottom: 5,
                     height: 65,
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20,
+                    paddingBottom: 8,
+                    paddingTop: 8,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
                     position: 'absolute',
                     bottom: 0,
                     left: 0,
                     right: 0,
+                    elevation: 10,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: -4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
                 },
                 tabBarLabelStyle: {
                     fontSize: 10,
-                    fontWeight: 'bold',
-                    marginBottom: 5
-                }
+                    fontWeight: '800',
+                    marginTop: 4,
+                },
             }}
         >
-            <Tab.Screen name="Dash" component={DashboardScreen} options={{ title: 'Dashboard' }} />
-            <Tab.Screen name="Items" component={ProductsScreen} options={{ title: 'Products' }} />
-            <Tab.Screen name="Logistics" component={ShipmentsScreen} options={{ title: 'Shipment' }} />
-            <Tab.Screen name="Sell" component={SalesScreen} options={{ title: 'Sales' }} />
-            <Tab.Screen name="Stats" component={ReportsScreen} options={{ title: 'Reports' }} />
+            <Tab.Screen name="Dash" component={DashboardScreen} options={{ 
+                title: 'Home',
+                tabBarIcon: ({ color, size }) => <Feather name="grid" size={size} color={color} /> 
+            }} />
+            <Tab.Screen name="Items" component={ProductsScreen} options={{ 
+                title: 'Products',
+                tabBarIcon: ({ color, size }) => <Feather name="box" size={size} color={color} /> 
+            }} />
+            <Tab.Screen name="Logistics" component={ShipmentsScreen} options={{ 
+                title: 'Shipment',
+                tabBarIcon: ({ color, size }) => <Feather name="truck" size={size} color={color} /> 
+            }} />
+            <Tab.Screen name="Sell" component={SalesScreen} options={{ 
+                title: 'Sales',
+                tabBarIcon: ({ color, size }) => <Feather name="dollar-sign" size={size} color={color} /> 
+            }} />
+            <Tab.Screen name="Stats" component={ReportsScreen} options={{ 
+                title: 'Reports',
+                tabBarIcon: ({ color, size }) => <Feather name="pie-chart" size={size} color={color} /> 
+            }} />
         </Tab.Navigator>
     );
 }

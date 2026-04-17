@@ -16,4 +16,9 @@ export class ExpenseRepository {
         const db = getDb();
         db.runSync('DELETE FROM expenses WHERE id = ?', [id]);
     }
+
+    updateExpense(id: number, amount: number, date: string, description: string) {
+        const db = getDb();
+        db.runSync('UPDATE expenses SET amount = ?, date = ?, description = ? WHERE id = ?', [amount, date, description, id]);
+    }
 }

@@ -22,6 +22,7 @@ export function ShipmentsScreen() {
     // Optional product link to update inventory
     const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
     const [quantity, setQuantity] = useState('');
+    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
     
     useEffect(() => {
         refreshAll();
@@ -40,7 +41,7 @@ export function ShipmentsScreen() {
             }] : [];
 
             await addShipment(
-                new Date().toISOString(), 
+                new Date(dateInput).toISOString(), 
                 'delivered', 
                 items,
                 parseFloat(amount) || 0,
@@ -51,8 +52,8 @@ export function ShipmentsScreen() {
             setModalVisible(false);
             resetForm();
             Alert.alert('Success', 'Shipment record created');
-        } catch (e) {
-            Alert.alert('Error', 'Failed to save shipment');
+        } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to save shipment');
         }
     };
 
@@ -62,6 +63,7 @@ export function ShipmentsScreen() {
         setAmount('');
         setSelectedProductId(null);
         setQuantity('');
+        setDateInput(new Date().toISOString().split('T')[0]);
     };
 
     const renderItem = ({ item }: { item: Shipment }) => {
@@ -172,6 +174,15 @@ export function ShipmentsScreen() {
                             value={description} 
                             onChangeText={setDescription} 
                             multiline
+                        />
+                        
+                        <Text style={[styles.label, { color: colors.textMuted }]}>DATE OF SHIPMENT (YYYY-MM-DD)</Text>
+                        <TextInput 
+                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
+                            placeholder="YYYY-MM-DD" 
+                            placeholderTextColor={colors.textMuted}
+                            value={dateInput} 
+                            onChangeText={setDateInput} 
                         />
 
                         <View style={styles.row}>

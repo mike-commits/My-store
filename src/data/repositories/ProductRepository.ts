@@ -20,8 +20,8 @@ export class ProductRepository {
     addProduct(product: Omit<Product, 'id'>) {
         const db = getDb();
         const result = db.runSync(
-            'INSERT INTO products (name, category, buy_price, sell_price, quantity, notes) VALUES (?, ?, ?, ?, ?, ?)',
-            [product.name, product.category, product.buy_price, product.sell_price, product.quantity, product.notes]
+            'INSERT INTO products (name, category, buy_price, sell_price, quantity, notes, date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [product.name, product.category, product.buy_price, product.sell_price, product.quantity, product.notes, product.date]
         );
         return result.lastInsertRowId;
     }
@@ -29,8 +29,8 @@ export class ProductRepository {
     updateProduct(product: Product) {
         const db = getDb();
         db.runSync(
-            'UPDATE products SET name = ?, category = ?, buy_price = ?, sell_price = ?, quantity = ?, notes = ? WHERE id = ?',
-            [product.name, product.category, product.buy_price, product.sell_price, product.quantity, product.notes, product.id]
+            'UPDATE products SET name = ?, category = ?, buy_price = ?, sell_price = ?, quantity = ?, notes = ?, date = ? WHERE id = ?',
+            [product.name, product.category, product.buy_price, product.sell_price, product.quantity, product.notes, product.date, product.id]
         );
     }
 

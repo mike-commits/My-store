@@ -16,4 +16,9 @@ export class PaymentRepository {
         const db = getDb();
         db.runSync('DELETE FROM payments WHERE id = ?', [id]);
     }
+
+    updatePayment(id: number, amount: number, date: string, notes: string) {
+        const db = getDb();
+        db.runSync('UPDATE payments SET amount = ?, date = ?, notes = ? WHERE id = ?', [amount, date, notes, id]);
+    }
 }

@@ -8,23 +8,48 @@ import { AppButton } from '../components/AppButton';
 import { FormLayout } from '../components/FormLayout';
 import { generatePerformancePDF } from '../../core/utils/pdfGenerator';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
+import { Payment, Expense } from '../../domain/models';
 
 export function ReportsScreen() {
-    const { manualReports, payments, expenses, stats, refreshAll, addPayment, addManualReport, deleteManualReport, addExpense, deleteExpense } = useStore();
+    const { manualReports, payments, expenses, stats, refreshAll, addPayment, deletePayment, updatePayment, addManualReport, updateManualReport, deleteManualReport, addExpense, deleteExpense, updateExpense } = useStore();
     const { colors, isDark } = useAppTheme();
 
     const [paymentModalVisible, setPaymentModalVisible] = useState(false);
     const [reportModalVisible, setReportModalVisible] = useState(false);
     const [expenseModalVisible, setExpenseModalVisible] = useState(false);
+
+    // Journal edit state
+    const [editReportModalVisible, setEditReportModalVisible] = useState(false);
+    const [editingReport, setEditingReport] = useState<{ id: number; title: string; content: string; date: string } | null>(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editContent, setEditContent] = useState('');
+    const [editDate, setEditDate] = useState('');
+
+    // Payment edit state
+    const [editPaymentModalVisible, setEditPaymentModalVisible] = useState(false);
+    const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+    const [editPayAmount, setEditPayAmount] = useState('');
+    const [editPayDate, setEditPayDate] = useState('');
+    const [editPayNotes, setEditPayNotes] = useState('');
+
+    // Expense edit state
+    const [editExpenseModalVisible, setEditExpenseModalVisible] = useState(false);
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+    const [editExpAmount, setEditExpAmount] = useState('');
+    const [editExpDate, setEditExpDate] = useState('');
+    const [editExpDesc, setEditExpDesc] = useState('');
     
     const [amount, setAmount] = useState('');
     const [notes, setNotes] = useState('');
+    const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
 
     const [expenseAmount, setExpenseAmount] = useState('');
     const [expenseDescription, setExpenseDescription] = useState('');
+    const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split('T')[0]);
     
     const [reportTitle, setReportTitle] = useState('');
     const [reportContent, setReportContent] = useState('');
+    const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0]);
 
     useEffect(() => {
         refreshAll();
@@ -40,31 +65,85 @@ export function ReportsScreen() {
     const handleSavePayment = async () => {
         if (!amount) return;
         try {
-            await addPayment(parseFloat(amount), new Date().toISOString(), notes);
+            await addPayment(parseFloat(amount), new Date(paymentDate).toISOString(), notes);
             setPaymentModalVisible(false);
             setAmount('');
             setNotes('');
+            setPaymentDate(new Date().toISOString().split('T')[0]);
         } catch (e) { Alert.alert('Error', 'Failed to save record'); }
     };
 
     const handleSaveReport = async () => {
         if (!reportTitle || !reportContent) return;
         try {
-            await addManualReport(reportTitle, reportContent);
+            await addManualReport(reportTitle, reportContent, reportDate);
             setReportModalVisible(false);
             setReportTitle('');
             setReportContent('');
+            setReportDate(new Date().toISOString().split('T')[0]);
         } catch (e) { Alert.alert('Error', 'Failed to save journal'); }
     };
 
     const handleSaveExpense = async () => {
         if (!expenseAmount || !expenseDescription) return;
         try {
-            await addExpense(parseFloat(expenseAmount), expenseDescription);
+            await addExpense(parseFloat(expenseAmount), expenseDescription, expenseDate);
             setExpenseModalVisible(false);
             setExpenseAmount('');
             setExpenseDescription('');
-        } catch (e) { Alert.alert('Error', 'Failed to save expense'); }
+            setExpenseDate(new Date().toISOString().split('T')[0]);
+        } catch (e: any) { Alert.alert('Error', e.message || 'Failed to save expense'); }
+    };
+
+    const openEditReport = (report: { id: number; title: string; content: string; date: string }) => {
+        setEditingReport(report);
+        setEditTitle(report.title);
+        setEditContent(report.content);
+        setEditDate(new Date(report.date).toISOString().split('T')[0]);
+        setEditReportModalVisible(true);
+    };
+
+    const handleUpdateReport = async () => {
+        if (!editingReport || !editTitle || !editContent) return;
+        try {
+            await updateManualReport(editingReport.id, editTitle, editContent, editDate);
+            setEditReportModalVisible(false);
+            setEditingReport(null);
+        } catch (e) { Alert.alert('Error', 'Failed to update journal'); }
+    };
+
+    const openEditPayment = (p: Payment) => {
+        setEditingPayment(p);
+        setEditPayAmount(String(p.amount));
+        setEditPayDate(new Date(p.date).toISOString().split('T')[0]);
+        setEditPayNotes(p.notes || '');
+        setEditPaymentModalVisible(true);
+    };
+
+    const handleUpdatePayment = async () => {
+        if (!editingPayment || !editPayAmount) return;
+        try {
+            await updatePayment(editingPayment.id, parseFloat(editPayAmount), editPayDate, editPayNotes);
+            setEditPaymentModalVisible(false);
+            setEditingPayment(null);
+        } catch (e) { Alert.alert('Error', 'Failed to update record'); }
+    };
+
+    const openEditExpense = (e: Expense) => {
+        setEditingExpense(e);
+        setEditExpAmount(String(e.amount));
+        setEditExpDate(new Date(e.date).toISOString().split('T')[0]);
+        setEditExpDesc(e.description || '');
+        setEditExpenseModalVisible(true);
+    };
+
+    const handleUpdateExpense = async () => {
+        if (!editingExpense || !editExpAmount || !editExpDesc) return;
+        try {
+            await updateExpense(editingExpense.id, parseFloat(editExpAmount), editExpDesc, editExpDate);
+            setEditExpenseModalVisible(false);
+            setEditingExpense(null);
+        } catch (e: any) { Alert.alert('Error', e.message || 'Failed to update expense'); }
     };
 
     return (
@@ -121,10 +200,18 @@ export function ReportsScreen() {
                 {manualReports.length > 0 ? manualReports.map(report => (
                     <Card key={report.id} style={styles.reportCard}>
                         <View style={styles.reportHeader}>
-                            <Text style={[styles.reportTitle, { color: colors.text }]}>{report.title}</Text>
-                            <TouchableOpacity onPress={() => deleteManualReport(report.id)}>
-                                <Text style={styles.deleteLink}>Delete</Text>
-                            </TouchableOpacity>
+                            <Text style={[styles.reportTitle, { color: colors.text, flex: 1, marginRight: 8 }]}>{report.title}</Text>
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <TouchableOpacity onPress={() => openEditReport(report)}>
+                                    <Text style={[styles.deleteLink, { color: colors.primary }]}>Edit</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => Alert.alert('Delete Journal', 'Are you sure?', [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: 'Delete', style: 'destructive', onPress: () => deleteManualReport(report.id) }
+                                ])}>
+                                    <Text style={styles.deleteLink}>Delete</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                         <Text style={[styles.reportDate, { color: colors.textMuted }]}>{new Date(report.date).toLocaleDateString()}</Text>
                         <Text style={[styles.reportContent, { color: colors.textSecondary }]}>{report.content}</Text>
@@ -135,13 +222,26 @@ export function ReportsScreen() {
 
                 {/* Money History Section */}
                 <Text style={[styles.sectionTitle, { marginTop: 32, color: colors.text }]}>Cash Received History</Text>
-                {payments.length > 0 ? payments.slice(0, 10).map(p => (
-                    <Card key={p.id} style={styles.paymentCard}>
-                        <View style={styles.paymentInfo}>
-                            <Text style={styles.paymentValue}>+ SSP {p.amount.toLocaleString()}</Text>
-                            <Text style={[styles.paymentNotes, { color: colors.textSecondary }]}>{p.notes}</Text>
+                {payments.length > 0 ? payments.map(p => (
+                    <Card key={p.id} style={styles.listCard}>
+                        <View style={styles.listCardTop}>
+                            <View style={styles.paymentInfo}>
+                                <Text style={styles.paymentValue}>+ SSP {p.amount.toLocaleString()}</Text>
+                                <Text style={[styles.paymentNotes, { color: colors.textSecondary }]}>{p.notes}</Text>
+                                <Text style={[styles.paymentDate, { color: colors.textMuted }]}>{new Date(p.date).toLocaleDateString()}</Text>
+                            </View>
+                            <View style={styles.actionBtns}>
+                                <TouchableOpacity onPress={() => openEditPayment(p)}>
+                                    <Text style={[styles.actionLink, { color: colors.primary }]}>Edit</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => Alert.alert('Delete Record', 'Remove this cash record?', [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: 'Delete', style: 'destructive', onPress: () => deletePayment(p.id) }
+                                ])}>
+                                    <Text style={styles.actionLink}>Delete</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <Text style={[styles.paymentDate, { color: colors.textMuted }]}>{new Date(p.date).toLocaleDateString()}</Text>
                     </Card>
                 )) : (
                     <Text style={[styles.emptyText, { color: colors.textMuted }]}>No cash records found.</Text>
@@ -150,14 +250,25 @@ export function ReportsScreen() {
                 {/* Expenses History Section */}
                 <Text style={[styles.sectionTitle, { marginTop: 32, color: colors.text }]}>Personal Expense History</Text>
                 {expenses.length > 0 ? expenses.map(e => (
-                    <Card key={e.id} style={[styles.paymentCard, { borderColor: isDark ? colors.error : '#FEE2E2', borderWidth: 1 }]}>
-                        <View style={styles.paymentInfo}>
-                            <Text style={[styles.paymentValue, { color: colors.error }]}>- SSP {e.amount.toLocaleString()}</Text>
-                            <Text style={[styles.paymentNotes, { color: colors.textSecondary }]}>{e.description}</Text>
+                    <Card key={e.id} style={[styles.listCard, { borderColor: isDark ? colors.error : '#FEE2E2', borderWidth: 1 }]}>
+                        <View style={styles.listCardTop}>
+                            <View style={styles.paymentInfo}>
+                                <Text style={[styles.paymentValue, { color: colors.error }]}>- SSP {e.amount.toLocaleString()}</Text>
+                                <Text style={[styles.paymentNotes, { color: colors.textSecondary }]}>{e.description}</Text>
+                                <Text style={[styles.paymentDate, { color: colors.textMuted }]}>{new Date(e.date).toLocaleDateString()}</Text>
+                            </View>
+                            <View style={styles.actionBtns}>
+                                <TouchableOpacity onPress={() => openEditExpense(e)}>
+                                    <Text style={[styles.actionLink, { color: colors.primary }]}>Edit</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => Alert.alert('Delete Expense', 'Remove this expense?', [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(e.id) }
+                                ])}>
+                                    <Text style={styles.actionLink}>Delete</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <TouchableOpacity onPress={() => deleteExpense(e.id)}>
-                            <Text style={[styles.deleteLink, { marginTop: 0 }]}>Remove</Text>
-                        </TouchableOpacity>
                     </Card>
                 )) : (
                     <Text style={[styles.emptyText, { color: colors.textMuted }]}>No personal expenses recorded.</Text>
@@ -175,6 +286,8 @@ export function ReportsScreen() {
                     </View>
                     <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT RECEIVED (SSP)</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={amount} onChangeText={setAmount} keyboardType="numeric" />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={paymentDate} onChangeText={setPaymentDate} />
                     <Text style={[styles.label, { color: colors.textMuted }]}>NOTES</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 100 }]} placeholder="Source of money..." placeholderTextColor={colors.textMuted} value={notes} onChangeText={setNotes} multiline />
                     <AppButton title="Save Record" onPress={handleSavePayment} style={{ marginTop: 20 }} />
@@ -190,6 +303,8 @@ export function ReportsScreen() {
                     </View>
                     <Text style={[styles.label, { color: colors.textMuted }]}>REPORT TITLE</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="e.g. Daily Closing" placeholderTextColor={colors.textMuted} value={reportTitle} onChangeText={setReportTitle} />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={reportDate} onChangeText={setReportDate} />
                     <Text style={[styles.label, { color: colors.textMuted }]}>REPORT CONTENT</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 200 }]} placeholder="Describe the business day..." placeholderTextColor={colors.textMuted} value={reportContent} onChangeText={setReportContent} multiline />
                     <AppButton title="Submit Journal" onPress={handleSaveReport} style={{ marginTop: 20 }} />
@@ -205,9 +320,62 @@ export function ReportsScreen() {
                     </View>
                     <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT SPENT (SSP)</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={expenseAmount} onChangeText={setExpenseAmount} keyboardType="numeric" />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={expenseDate} onChangeText={setExpenseDate} />
                     <Text style={[styles.label, { color: colors.textMuted }]}>DESCRIPTION</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="What was this for? (e.g. Lunch, Transports)" placeholderTextColor={colors.textMuted} value={expenseDescription} onChangeText={setExpenseDescription} />
                     <AppButton title="Save Expense" onPress={handleSaveExpense} style={{ marginTop: 20 }} />
+                </FormLayout>
+            </Modal>
+
+            {/* Edit Journal Modal */}
+            <Modal visible={editReportModalVisible} animationType="slide" presentationStyle="pageSheet">
+                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+                    <View style={styles.modalHeader}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Journal</Text>
+                        <AppButton title="✕" type="ghost" onPress={() => setEditReportModalVisible(false)} />
+                    </View>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>TITLE</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="e.g. Daily Closing" placeholderTextColor={colors.textMuted} value={editTitle} onChangeText={setEditTitle} />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editDate} onChangeText={setEditDate} />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>CONTENT</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 200 }]} placeholder="Describe the business day..." placeholderTextColor={colors.textMuted} value={editContent} onChangeText={setEditContent} multiline />
+                    <AppButton title="Save Changes" onPress={handleUpdateReport} style={{ marginTop: 20 }} />
+                </FormLayout>
+            </Modal>
+
+            {/* Edit Payment Modal */}
+            <Modal visible={editPaymentModalVisible} animationType="slide" presentationStyle="pageSheet">
+                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+                    <View style={styles.modalHeader}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Cash Record</Text>
+                        <AppButton title="✕" type="ghost" onPress={() => setEditPaymentModalVisible(false)} />
+                    </View>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT (SSP)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={editPayAmount} onChangeText={setEditPayAmount} keyboardType="numeric" />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editPayDate} onChangeText={setEditPayDate} />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>NOTES</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 100 }]} placeholder="Source of money..." placeholderTextColor={colors.textMuted} value={editPayNotes} onChangeText={setEditPayNotes} multiline />
+                    <AppButton title="Save Changes" onPress={handleUpdatePayment} style={{ marginTop: 20 }} />
+                </FormLayout>
+            </Modal>
+
+            {/* Edit Expense Modal */}
+            <Modal visible={editExpenseModalVisible} animationType="slide" presentationStyle="pageSheet">
+                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+                    <View style={styles.modalHeader}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Expense</Text>
+                        <AppButton title="✕" type="ghost" onPress={() => setEditExpenseModalVisible(false)} />
+                    </View>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT (SSP)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={editExpAmount} onChangeText={setEditExpAmount} keyboardType="numeric" />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editExpDate} onChangeText={setEditExpDate} />
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DESCRIPTION</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="What was this for?" placeholderTextColor={colors.textMuted} value={editExpDesc} onChangeText={setEditExpDesc} />
+                    <AppButton title="Save Changes" onPress={handleUpdateExpense} style={{ marginTop: 20 }} />
                 </FormLayout>
             </Modal>
         </SafeAreaView>
@@ -247,11 +415,15 @@ const styles = StyleSheet.create({
     reportContent: { fontSize: 13, lineHeight: 18 },
     deleteLink: { fontSize: 11, color: '#EF4444', fontWeight: 'bold' },
 
-    paymentCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 12, marginBottom: 12 },
+    listCard: { padding: 16, borderRadius: 12, marginBottom: 12 },
+    listCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    actionBtns: { flexDirection: 'column', alignItems: 'flex-end', gap: 6, marginLeft: 12 },
+    actionLink: { fontSize: 11, color: '#EF4444', fontWeight: 'bold' },
+
     paymentInfo: { flex: 1 },
     paymentValue: { fontSize: 15, fontWeight: 'bold', color: '#10B981' },
     paymentNotes: { fontSize: 12, marginTop: 2 },
-    paymentDate: { fontSize: 11 },
+    paymentDate: { fontSize: 11, marginTop: 2 },
 
     emptyText: { textAlign: 'center', marginTop: 20, fontStyle: 'italic', fontSize: 13 },
     modalContainer: { padding: 24, paddingTop: 60 },

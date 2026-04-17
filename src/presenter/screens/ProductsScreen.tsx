@@ -24,6 +24,7 @@ export function ProductsScreen() {
     const [sellPrice, setSellPrice] = useState('');
     const [quantity, setQuantity] = useState('');
     const [notes, setNotes] = useState('');
+    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
 
     const CATEGORIES = [
         'Shoes (Men)', 'Shoes (Women)', 'Shoes (Kids)',
@@ -43,6 +44,7 @@ export function ProductsScreen() {
         setSellPrice('');
         setQuantity('');
         setNotes('');
+        setDateInput(new Date().toISOString().split('T')[0]);
     };
 
     const handleSave = async () => {
@@ -58,7 +60,8 @@ export function ProductsScreen() {
                 buy_price: parseFloat(buyPrice),
                 sell_price: parseFloat(sellPrice),
                 quantity: parseInt(quantity, 10),
-                notes
+                notes,
+                date: new Date(dateInput).toISOString()
             };
 
             if (editingId) {
@@ -69,8 +72,8 @@ export function ProductsScreen() {
             
             setModalVisible(false);
             resetForm();
-        } catch (e) {
-            Alert.alert('Error', 'Failed to save product');
+        } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to save product');
         }
     };
 
@@ -82,6 +85,7 @@ export function ProductsScreen() {
         setSellPrice(p.sell_price.toString());
         setQuantity(p.quantity.toString());
         setNotes(p.notes || '');
+        setDateInput(p.date ? new Date(p.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
         setModalVisible(true);
     };
 
@@ -243,6 +247,15 @@ export function ProductsScreen() {
                             value={quantity} 
                             onChangeText={setQuantity} 
                             keyboardType="numeric" 
+                        />
+
+                        <Text style={[styles.label, { color: colors.textMuted }]}>DATE ADDED (YYYY-MM-DD)</Text>
+                        <TextInput 
+                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
+                            placeholder="YYYY-MM-DD" 
+                            placeholderTextColor={colors.textMuted}
+                            value={dateInput} 
+                            onChangeText={setDateInput} 
                         />
 
                         <Text style={[styles.label, { color: colors.textMuted }]}>NOTES & DESCRIPTION</Text>

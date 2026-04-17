@@ -5,6 +5,7 @@ export interface Product {
     buy_price: number;
     sell_price: number;
     quantity: number; // main stock
+    date?: string;
     notes?: string;
     shipped_quantity?: number;
     sold_quantity?: number;

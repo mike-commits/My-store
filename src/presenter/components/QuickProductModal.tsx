@@ -14,6 +14,8 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
     const [name, setName] = useState('');
     const [buyPrice, setBuyPrice] = useState('');
     const [sellPrice, setSellPrice] = useState('');
+    const [quantity, setQuantity] = useState('');
+    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
     const { colors, isDark } = useAppTheme();
 
     const handleSave = async () => {
@@ -26,13 +28,16 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
             category: 'Others',
             buy_price: parseFloat(buyPrice),
             sell_price: parseFloat(sellPrice),
-            quantity: 0,
+            quantity: parseInt(quantity, 10) || 0,
+            date: new Date(dateInput).toISOString(),
             notes: 'Quick manual add'
         });
         onClose();
         setName('');
         setBuyPrice('');
         setSellPrice('');
+        setQuantity('');
+        setDateInput(new Date().toISOString().split('T')[0]);
     };
 
     return (
@@ -53,6 +58,17 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
                     <View style={{ flex: 1 }}>
                         <Text style={[styles.label, { color: colors.textMuted }]}>SELL PRICE</Text>
                         <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0" placeholderTextColor={colors.textMuted} value={sellPrice} onChangeText={setSellPrice} keyboardType="numeric" />
+                    </View>
+                </View>
+
+                <View style={styles.row}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.label, { color: colors.textMuted }]}>QUANTITY</Text>
+                        <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0" placeholderTextColor={colors.textMuted} value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                        <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={dateInput} onChangeText={setDateInput} />
                     </View>
                 </View>
                 
