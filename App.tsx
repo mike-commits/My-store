@@ -25,11 +25,12 @@ function HomeTabs() {
                 headerShown: false,
                 tabBarActiveTintColor: '#FFFFFF',
                 tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
-                tabBarShowLabel: false,
+                tabBarShowLabel: true,
+                tabBarLabelPosition: 'below-icon',
                 tabBarStyle: {
                     backgroundColor: colors.primary,
                     borderTopWidth: 0,
-                    height: Platform.OS === 'web' ? 85 : 65,
+                    height: 85,
                     borderTopLeftRadius: 24,
                     borderTopRightRadius: 24,
                     elevation: 10,
@@ -38,47 +39,36 @@ function HomeTabs() {
                     shadowOpacity: 0.15,
                     shadowRadius: 8,
                 },
+                tabBarItemStyle: {
+                    paddingBottom: 15,
+                    paddingTop: 5,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 11,
+                    fontWeight: '800',
+                    marginTop: 4,
+                },
             }}
         >
             <Tab.Screen name="Dash" component={DashboardScreen} options={{ 
-                tabBarIcon: ({ color, size }) => (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Platform.OS === 'web' ? 25 : 0 }}>
-                        <Feather name="grid" size={20} color={color} />
-                        <Text style={{ color, fontSize: 10, fontWeight: '800', marginTop: 4 }}>Home</Text>
-                    </View>
-                )
+                title: 'Home',
+                tabBarIcon: ({ color, size }) => <Feather name="grid" size={24} color={color} /> 
             }} />
             <Tab.Screen name="Items" component={ProductsScreen} options={{ 
-                tabBarIcon: ({ color, size }) => (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Platform.OS === 'web' ? 25 : 0 }}>
-                        <Feather name="box" size={20} color={color} />
-                        <Text style={{ color, fontSize: 10, fontWeight: '800', marginTop: 4 }}>Items</Text>
-                    </View>
-                )
+                title: 'Products',
+                tabBarIcon: ({ color, size }) => <Feather name="box" size={24} color={color} /> 
             }} />
             <Tab.Screen name="Logistics" component={ShipmentsScreen} options={{ 
-                tabBarIcon: ({ color, size }) => (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Platform.OS === 'web' ? 25 : 0 }}>
-                        <Feather name="truck" size={20} color={color} />
-                        <Text style={{ color, fontSize: 10, fontWeight: '800', marginTop: 4 }}>Freight</Text>
-                    </View>
-                )
+                title: 'Shipment',
+                tabBarIcon: ({ color, size }) => <Feather name="truck" size={24} color={color} /> 
             }} />
             <Tab.Screen name="Sell" component={SalesScreen} options={{ 
-                tabBarIcon: ({ color, size }) => (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Platform.OS === 'web' ? 25 : 0 }}>
-                        <Feather name="dollar-sign" size={20} color={color} />
-                        <Text style={{ color, fontSize: 10, fontWeight: '800', marginTop: 4 }}>Sales</Text>
-                    </View>
-                )
+                title: 'Sales',
+                tabBarIcon: ({ color, size }) => <Feather name="dollar-sign" size={24} color={color} /> 
             }} />
             <Tab.Screen name="Stats" component={ReportsScreen} options={{ 
-                tabBarIcon: ({ color, size }) => (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Platform.OS === 'web' ? 25 : 0 }}>
-                        <Feather name="pie-chart" size={20} color={color} />
-                        <Text style={{ color, fontSize: 10, fontWeight: '800', marginTop: 4 }}>Stats</Text>
-                    </View>
-                )
+                title: 'Reports',
+                tabBarIcon: ({ color, size }) => <Feather name="pie-chart" size={24} color={color} /> 
             }} />
         </Tab.Navigator>
     );
