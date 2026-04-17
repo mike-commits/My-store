@@ -29,6 +29,8 @@ function HomeTabs() {
                 tabBarStyle: {
                     backgroundColor: colors.primary,
                     borderTopWidth: 0,
+                    paddingBottom: 24,
+                    paddingTop: 8,
                     borderTopLeftRadius: 24,
                     borderTopRightRadius: 24,
                     elevation: 10,
