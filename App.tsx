@@ -30,7 +30,6 @@ function HomeTabs() {
                 tabBarStyle: {
                     backgroundColor: colors.primary,
                     borderTopWidth: 0,
-                    height: 85,
                     borderTopLeftRadius: 24,
                     borderTopRightRadius: 24,
                     elevation: 10,
@@ -40,8 +39,8 @@ function HomeTabs() {
                     shadowRadius: 8,
                 },
                 tabBarItemStyle: {
-                    paddingBottom: 15,
-                    paddingTop: 5,
+                    paddingBottom: Platform.OS === 'web' ? 25 : 15,
+                    paddingTop: 8,
                 },
                 tabBarLabelStyle: {
                     fontSize: 11,
