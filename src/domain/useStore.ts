@@ -57,19 +57,11 @@ export const useStore = () => {
     };
 
     const addProduct = async (product: Omit<Product, 'id'>) => {
-        const cost = product.buy_price * product.quantity;
-        const available = getAvailableCash();
-        if (cost > available) throw new Error(`Insufficient funds in shop! Required: SSP ${cost.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
         productRepo.addProduct(product);
         refreshAll();
     };
 
     const updateProduct = async (product: Product) => {
-        const oldProduct = globalProducts.find(p => p.id === product.id);
-        const oldCost = oldProduct ? (oldProduct.buy_price * oldProduct.quantity) : 0;
-        const newCost = product.buy_price * product.quantity;
-        const available = getAvailableCash();
-        if (newCost - oldCost > available) throw new Error(`Insufficient funds for this update! Required: SSP ${(newCost - oldCost).toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
         productRepo.updateProduct(product);
         refreshAll();
     };

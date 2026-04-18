@@ -23,21 +23,25 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
             Alert.alert('Error', 'Please fill required fields');
             return;
         }
-        await onAdd({
-            name,
-            category: 'Others',
-            buy_price: parseFloat(buyPrice),
-            sell_price: parseFloat(sellPrice),
-            quantity: parseInt(quantity, 10) || 0,
-            date: new Date(dateInput).toISOString(),
-            notes: 'Quick manual add'
-        });
-        onClose();
-        setName('');
-        setBuyPrice('');
-        setSellPrice('');
-        setQuantity('');
-        setDateInput(new Date().toISOString().split('T')[0]);
+        try {
+            await onAdd({
+                name,
+                category: 'Others',
+                buy_price: parseFloat(buyPrice),
+                sell_price: parseFloat(sellPrice),
+                quantity: parseInt(quantity, 10) || 0,
+                date: new Date(dateInput).toISOString(),
+                notes: 'Quick manual add'
+            });
+            onClose();
+            setName('');
+            setBuyPrice('');
+            setSellPrice('');
+            setQuantity('');
+            setDateInput(new Date().toISOString().split('T')[0]);
+        } catch (e: any) {
+            Alert.alert('Form Error', e.message || 'Could not save product');
+        }
     };
 
     return (
