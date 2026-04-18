@@ -96,32 +96,32 @@ export const mockDb = {
     }
 
     if (sqlLower.includes('delete from products')) {
-        webStore.products = webStore.products.filter(x => x.id !== params[0]);
+        webStore.products = webStore.products.filter(x => x.id != params[0]);
         saveWebStore();
     } else if (sqlLower.includes('delete from shipments')) {
-        webStore.shipments = webStore.shipments.filter(x => x.id !== params[0]);
-        webStore.shipment_items = webStore.shipment_items.filter(x => x.shipment_id !== params[0]);
+        webStore.shipments = webStore.shipments.filter(x => x.id != params[0]);
+        webStore.shipment_items = webStore.shipment_items.filter(x => x.shipment_id != params[0]);
         saveWebStore();
     } else if (sqlLower.includes('delete from sales')) {
-        webStore.sales = webStore.sales.filter(x => x.id !== params[0]);
+        webStore.sales = webStore.sales.filter(x => x.id != params[0]);
         saveWebStore();
     } else if (sqlLower.includes('delete from manual_reports')) {
-        webStore.manual_reports = webStore.manual_reports.filter(x => x.id !== params[0]);
+        webStore.manual_reports = webStore.manual_reports.filter(x => x.id != params[0]);
         saveWebStore();
     } else if (sqlLower.includes('delete from expenses')) {
-        webStore.expenses = webStore.expenses.filter(x => x.id !== params[0]);
+        webStore.expenses = webStore.expenses.filter(x => x.id != params[0]);
         saveWebStore();
     } else if (sqlLower.includes('update expenses set')) {
-        const idx = webStore.expenses.findIndex(x => x.id === params[3]);
+        const idx = webStore.expenses.findIndex(x => x.id == params[3]);
         if (idx !== -1) {
             webStore.expenses[idx] = { ...webStore.expenses[idx], amount: params[0], date: params[1], description: params[2] };
             saveWebStore();
         }
     } else if (sqlLower.includes('delete from payments')) {
-        webStore.payments = webStore.payments.filter(x => x.id !== params[0]);
+        webStore.payments = webStore.payments.filter(x => x.id != params[0]);
         saveWebStore();
     } else if (sqlLower.includes('update payments set')) {
-        const idx = webStore.payments.findIndex(x => x.id === params[3]);
+        const idx = webStore.payments.findIndex(x => x.id == params[3]);
         if (idx !== -1) {
             webStore.payments[idx] = { ...webStore.payments[idx], amount: params[0], date: params[1], notes: params[2] };
             saveWebStore();
