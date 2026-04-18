@@ -72,15 +72,6 @@ export const useStore = () => {
     };
 
     const addShipment = async (date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) => {
-        let itemsCost = 0;
-        for (const item of items) {
-            const p = globalProducts.find(x => x.id === item.product_id);
-            if (p) itemsCost += p.buy_price * item.quantity;
-        }
-        const totalCost = itemsCost + shippingCost;
-        const available = getAvailableCash();
-        if (totalCost > available) throw new Error(`Insufficient funds for shipment! Required: SSP ${totalCost.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
-
         shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
         refreshAll();
     };
