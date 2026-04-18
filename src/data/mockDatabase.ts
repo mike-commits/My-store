@@ -111,6 +111,21 @@ export const mockDb = {
     } else if (sqlLower.includes('delete from expenses')) {
         webStore.expenses = webStore.expenses.filter(x => x.id !== params[0]);
         saveWebStore();
+    } else if (sqlLower.includes('update expenses set')) {
+        const idx = webStore.expenses.findIndex(x => x.id === params[3]);
+        if (idx !== -1) {
+            webStore.expenses[idx] = { ...webStore.expenses[idx], amount: params[0], date: params[1], description: params[2] };
+            saveWebStore();
+        }
+    } else if (sqlLower.includes('delete from payments')) {
+        webStore.payments = webStore.payments.filter(x => x.id !== params[0]);
+        saveWebStore();
+    } else if (sqlLower.includes('update payments set')) {
+        const idx = webStore.payments.findIndex(x => x.id === params[3]);
+        if (idx !== -1) {
+            webStore.payments[idx] = { ...webStore.payments[idx], amount: params[0], date: params[1], notes: params[2] };
+            saveWebStore();
+        }
     }
 
     return { lastInsertRowId: 0 };
