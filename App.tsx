@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, ActivityIndicator, StatusBar, Platform } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, ActivityIndicator, StatusBar, Platform, Dimensions } from 'react-native';
 import { DashboardScreen } from './src/presenter/screens/DashboardScreen';
 import { ProductsScreen } from './src/presenter/screens/ProductsScreen';
 import { ShipmentsScreen } from './src/presenter/screens/ShipmentsScreen';
@@ -14,11 +14,20 @@ import { initDb } from './src/data/database';
 import { ThemeProvider, useAppTheme } from './src/core/contexts/ThemeContext';
 import { Feather } from '@expo/vector-icons';
 
+const { width } = Dimensions.get('window');
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function HomeTabs() {
     const { colors } = useAppTheme();
+    const insets = useSafeAreaInsets();
+    
+    // Adaptive padding for floating layout
+    const isMobileWeb = Platform.OS === 'web' && width < 768;
+    const floatingBottom = isMobileWeb ? 30 : Math.max(insets.bottom, 15);
+    const tabBarHeight = 70;
+
     return (
         <Tab.Navigator 
             screenOptions={{ 
@@ -28,24 +37,33 @@ function HomeTabs() {
                 tabBarShowLabel: true,
                 tabBarLabelPosition: 'below-icon',
                 tabBarStyle: {
+                    position: 'absolute',
+                    bottom: floatingBottom,
+                    left: 20,
+                    right: 20,
                     backgroundColor: colors.primary,
                     borderTopWidth: 0,
-                    borderTopLeftRadius: 24,
-                    borderTopRightRadius: 24,
+                    height: tabBarHeight,
+                    borderRadius: 35,
                     elevation: 10,
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: -4 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 15,
+                    paddingBottom: 10,
+                    paddingTop: 10,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.1)',
                 },
                 tabBarItemStyle: {
-                    paddingBottom: Platform.OS === 'web' ? 25 : 15,
-                    paddingTop: 8,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: 50,
                 },
                 tabBarLabelStyle: {
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: '800',
-                    marginTop: 4,
+                    marginTop: 2,
                 },
             }}
         >
