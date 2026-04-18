@@ -235,15 +235,15 @@ export function ProductsScreen() {
                                     <View style={styles.unitToggle}>
                                         <TouchableOpacity 
                                             onPress={() => setBuyUnit('pcs')}
-                                            style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
+                                            style={[styles.unitBtn, buyUnit === 'pcs' && styles.activeUnitBtn]}
                                         >
-                                            <Text style={[styles.unitBtnText, buyUnit === 'pcs' && { color: '#FFF' }]}>PCS</Text>
+                                            <Text style={[styles.unitBtnText, buyUnit === 'pcs' && styles.activeUnitText]}>PCS</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity 
                                             onPress={() => setBuyUnit('doz')}
-                                            style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
+                                            style={[styles.unitBtn, buyUnit === 'doz' && styles.activeUnitBtn]}
                                         >
-                                            <Text style={[styles.unitBtnText, buyUnit === 'doz' && { color: '#FFF' }]}>DOZ</Text>
+                                            <Text style={[styles.unitBtnText, buyUnit === 'doz' && styles.activeUnitText]}>DOZ</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -348,9 +348,38 @@ const styles = StyleSheet.create({
     formSection: { marginBottom: 24 },
     label: { fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
     labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    unitToggle: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 8, padding: 2 },
-    unitBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-    unitBtnText: { fontSize: 8, fontWeight: '900', color: '#6B7280' },
+    unitToggle: { 
+        flexDirection: 'row', 
+        backgroundColor: '#F1F5F9', // Sleek slate gray
+        borderRadius: 10, 
+        padding: 4,
+        borderWidth: 1,
+        borderColor: '#E2E8F0'
+    },
+    unitBtn: { 
+        paddingHorizontal: 12, 
+        paddingVertical: 6, 
+        borderRadius: 8,
+        minWidth: 44,
+        alignItems: 'center'
+    },
+    unitBtnText: { 
+        fontSize: 10, 
+        fontWeight: '800', 
+        color: '#64748B',
+        letterSpacing: 0.5
+    },
+    activeUnitBtn: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    activeUnitText: {
+        color: '#000000', // Or colors.primary
+    },
     row: { flexDirection: 'row', gap: 16 },
     input: { 
         padding: 16, 

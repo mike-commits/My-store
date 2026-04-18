@@ -84,15 +84,15 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
                             <View style={styles.unitToggle}>
                                 <TouchableOpacity 
                                     onPress={() => setBuyUnit('pcs')}
-                                    style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
+                                    style={[styles.unitBtn, buyUnit === 'pcs' && styles.activeUnitBtn]}
                                 >
-                                    <Text style={[styles.unitBtnText, buyUnit === 'pcs' && { color: '#FFF' }]}>PCS</Text>
+                                    <Text style={[styles.unitBtnText, buyUnit === 'pcs' && styles.activeUnitText]}>PCS</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
                                     onPress={() => setBuyUnit('doz')}
-                                    style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
+                                    style={[styles.unitBtn, buyUnit === 'doz' && styles.activeUnitBtn]}
                                 >
-                                    <Text style={[styles.unitBtnText, buyUnit === 'doz' && { color: '#FFF' }]}>DOZ</Text>
+                                    <Text style={[styles.unitBtnText, buyUnit === 'doz' && styles.activeUnitText]}>DOZ</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -116,9 +116,37 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 24, fontWeight: '900' },
     label: { fontSize: 10, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
     labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    unitToggle: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 8, padding: 2 },
-    unitBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-    unitBtnText: { fontSize: 8, fontWeight: '900', color: '#6B7280' },
+    unitToggle: { 
+        flexDirection: 'row', 
+        backgroundColor: '#F1F5F9',
+        borderRadius: 8, 
+        padding: 4,
+        borderWidth: 1,
+        borderColor: '#E2E8F0'
+    },
+    unitBtn: { 
+        paddingHorizontal: 12, 
+        paddingVertical: 5, 
+        borderRadius: 6,
+        minWidth: 40,
+        alignItems: 'center'
+    },
+    unitBtnText: { 
+        fontSize: 10, 
+        fontWeight: '800', 
+        color: '#64748B'
+    },
+    activeUnitBtn: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    activeUnitText: {
+        color: '#000',
+    },
     input: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16, marginBottom: 20 },
     row: { flexDirection: 'row', gap: 16 }
 });
