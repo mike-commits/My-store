@@ -25,45 +25,47 @@ function HomeTabs() {
     
     // Adaptive padding for floating layout
     const isMobileWeb = Platform.OS === 'web' && width < 768;
+    const horizontalMargin = width < 375 ? 12 : 20; // Thinner margins on small phones
     const floatingBottom = isMobileWeb ? 30 : Math.max(insets.bottom, 15);
-    const tabBarHeight = 70;
+    const tabBarHeight = 72;
 
     return (
         <Tab.Navigator 
             screenOptions={{ 
                 headerShown: false,
                 tabBarActiveTintColor: '#FFFFFF',
-                tabBarInactiveTintColor: 'rgba(255,255,255,0.5)',
+                tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',
                 tabBarShowLabel: true,
                 tabBarLabelPosition: 'below-icon',
                 tabBarStyle: {
                     position: 'absolute',
                     bottom: floatingBottom,
-                    left: 20,
-                    right: 20,
+                    left: horizontalMargin,
+                    right: horizontalMargin,
                     backgroundColor: colors.primary,
                     borderTopWidth: 0,
                     height: tabBarHeight,
-                    borderRadius: 35,
+                    borderRadius: 36,
                     elevation: 10,
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 10 },
                     shadowOpacity: 0.3,
                     shadowRadius: 15,
-                    paddingBottom: 10,
-                    paddingTop: 10,
+                    paddingBottom: 12,
+                    paddingTop: 8,
                     borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderColor: 'rgba(255,255,255,0.15)',
                 },
                 tabBarItemStyle: {
                     justifyContent: 'center',
                     alignItems: 'center',
-                    height: 50,
+                    paddingHorizontal: 2,
                 },
                 tabBarLabelStyle: {
-                    fontSize: 10,
-                    fontWeight: '800',
+                    fontSize: 9,
+                    fontWeight: '700',
                     marginTop: 2,
+                    textAlign: 'center',
                 },
             }}
         >
