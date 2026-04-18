@@ -43,8 +43,8 @@ export class ShipmentRepository {
             for (const item of items) {
                 db.runSync('UPDATE products SET quantity = quantity - ? WHERE id = ?', [item.quantity, item.product_id]);
             }
-            db.runSync('DELETE FROM shipments WHERE id = ?', [id]);
             db.runSync('DELETE FROM shipment_items WHERE shipment_id = ?', [id]);
+            db.runSync('DELETE FROM shipments WHERE id = ?', [id]);
         });
     }
 }

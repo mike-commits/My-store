@@ -90,8 +90,12 @@ export function ProductsScreen() {
     };
 
     const handleDelete = (id: number) => {
-        const performDelete = () => {
-            deleteProduct(id);
+        const performDelete = async () => {
+            try {
+                await deleteProduct(id);
+            } catch (e: any) {
+                Alert.alert('Error', e.message || 'Failed to delete product');
+            }
         };
 
         if (Platform.OS === 'web') {

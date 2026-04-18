@@ -36,7 +36,11 @@ export class ProductRepository {
 
     deleteProduct(id: number) {
         const db = getDb();
-        db.runSync('DELETE FROM products WHERE id = ?', [id]);
+        db.withTransactionSync(() => {
+            db.runSync('DELETE FROM sales WHERE product_id = ?', [id]);
+            db.runSync('DELETE FROM shipment_items WHERE product_id = ?', [id]);
+            db.runSync('DELETE FROM products WHERE id = ?', [id]);
+        });
     }
 
     getProductShipments(productId: number): (ShipmentItem & { date: string })[] {

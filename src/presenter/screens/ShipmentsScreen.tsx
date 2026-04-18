@@ -119,8 +119,12 @@ export function ShipmentsScreen() {
     };
 
     const handleDelete = (id: number) => {
-        const performDelete = () => {
-            deleteShipment(id);
+        const performDelete = async () => {
+            try {
+                await deleteShipment(id);
+            } catch (e: any) {
+                Alert.alert('Error', e.message || 'Failed to delete shipment');
+            }
         };
 
         if (Platform.OS === 'web') {
