@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../domain/useStore';
 import { useNavigation } from '@react-navigation/native';
@@ -276,8 +276,8 @@ export function ProductsScreen() {
                             style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
                             placeholder="0" 
                             placeholderTextColor={colors.textMuted}
-                            value={quantity} 
-                            onChangeText={setQuantity} 
+                            value={sellPrice} 
+                            onChangeText={setSellPrice} 
                             keyboardType="numeric" 
                         />
 
