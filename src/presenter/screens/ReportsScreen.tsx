@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, TextInput, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Modal, TextInput, Alert, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../domain/useStore';
 import { Theme } from '../../core/theme';
@@ -205,10 +205,19 @@ export function ReportsScreen() {
                                 <TouchableOpacity onPress={() => openEditReport(report)}>
                                     <Text style={[styles.deleteLink, { color: colors.primary }]}>Edit</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => Alert.alert('Delete Journal', 'Are you sure?', [
-                                    { text: 'Cancel', style: 'cancel' },
-                                    { text: 'Delete', style: 'destructive', onPress: () => deleteManualReport(report.id) }
-                                ])}>
+                                <TouchableOpacity onPress={() => {
+                                    const proc = async () => {
+                                        try { await deleteManualReport(report.id); } catch(e: any) { Alert.alert('Error', e.message); }
+                                    };
+                                    if (Platform.OS === 'web') {
+                                        if (window.confirm('Delete this journal?')) proc();
+                                    } else {
+                                        Alert.alert('Delete Journal', 'Are you sure?', [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            { text: 'Delete', style: 'destructive', onPress: proc }
+                                        ]);
+                                    }
+                                }}>
                                     <Text style={styles.deleteLink}>Delete</Text>
                                 </TouchableOpacity>
                             </View>
@@ -234,10 +243,19 @@ export function ReportsScreen() {
                                 <TouchableOpacity onPress={() => openEditPayment(p)}>
                                     <Text style={[styles.actionLink, { color: colors.primary }]}>Edit</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => Alert.alert('Delete Record', 'Remove this cash record?', [
-                                    { text: 'Cancel', style: 'cancel' },
-                                    { text: 'Delete', style: 'destructive', onPress: () => deletePayment(p.id) }
-                                ])}>
+                                <TouchableOpacity onPress={() => {
+                                    const proc = async () => {
+                                        try { await deletePayment(p.id); } catch(e: any) { Alert.alert('Error', e.message); }
+                                    };
+                                    if (Platform.OS === 'web') {
+                                        if (window.confirm('Remove this cash record?')) proc();
+                                    } else {
+                                        Alert.alert('Delete Record', 'Remove this cash record?', [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            { text: 'Delete', style: 'destructive', onPress: proc }
+                                        ]);
+                                    }
+                                }}>
                                     <Text style={styles.actionLink}>Delete</Text>
                                 </TouchableOpacity>
                             </View>
@@ -261,10 +279,19 @@ export function ReportsScreen() {
                                 <TouchableOpacity onPress={() => openEditExpense(e)}>
                                     <Text style={[styles.actionLink, { color: colors.primary }]}>Edit</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={() => Alert.alert('Delete Expense', 'Remove this expense?', [
-                                    { text: 'Cancel', style: 'cancel' },
-                                    { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(e.id) }
-                                ])}>
+                                <TouchableOpacity onPress={() => {
+                                    const proc = async () => {
+                                        try { await deleteExpense(e.id); } catch(e: any) { Alert.alert('Error', e.message); }
+                                    };
+                                    if (Platform.OS === 'web') {
+                                        if (window.confirm('Remove this expense?')) proc();
+                                    } else {
+                                        Alert.alert('Delete Expense', 'Remove this expense?', [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            { text: 'Delete', style: 'destructive', onPress: proc }
+                                        ]);
+                                    }
+                                }}>
                                     <Text style={styles.actionLink}>Delete</Text>
                                 </TouchableOpacity>
                             </View>
