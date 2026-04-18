@@ -165,40 +165,42 @@ export const useStore = () => {
     }, [globalSales, globalProducts, globalShipments, globalPayments, globalExpenses]);
 
     return {
+        stats,
+        refreshAll,
+        // Entities
         products: globalProducts,
         shipments: globalShipments,
         sales: globalSales,
         payments: globalPayments,
         manualReports: globalReports,
         expenses: globalExpenses,
-        stats,
-        refreshAll,
+        // Actions
         addProduct,
         updateProduct,
-        addShipment,
-        addSale,
-        addPayment,
-        addManualReport,
-        updateManualReport,
-        deleteManualReport,
-        addPayment,
-        deletePayment,
-        updatePayment,
-        addExpense,
-        deleteExpense,
-        updateExpense,
         deleteProduct,
+        addShipment,
         deleteShipment: (id: number) => {
             shipmentRepo.deleteShipment(id);
             refreshAll();
         },
+        addSale,
         deleteSale: (id: number) => {
             saleRepo.deleteSale(id);
             refreshAll();
         },
-        shipmentRepo,
-        productRepo,
+        addPayment,
+        updatePayment,
+        deletePayment,
+        addManualReport,
+        updateManualReport,
+        deleteManualReport,
+        addExpense,
+        updateExpense,
+        deleteExpense,
+        // Helpers
         getProductShipments: (productId: number) => productRepo.getProductShipments(productId),
         getProductSales: (productId: number) => productRepo.getProductSales(productId),
+        shipmentRepo,
+        productRepo,
     };
 }
