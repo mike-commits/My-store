@@ -17,6 +17,14 @@ export function ProductsScreen() {
     const navigation = useNavigation<any>();
     const [modalVisible, setModalVisible] = useState(false);
     
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [name, setName] = useState('');
+    const [category, setCategory] = useState('Others');
+    const [buyPrice, setBuyPrice] = useState('');
+    const [sellPrice, setSellPrice] = useState('');
+    const [quantity, setQuantity] = useState('');
+    const [notes, setNotes] = useState('');
+    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
     const [buyUnit, setBuyUnit] = useState<'pcs' | 'doz'>('pcs');
 
     const CATEGORIES = [

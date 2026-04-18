@@ -11,6 +11,11 @@ interface QuickProductModalProps {
 }
 
 export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModalProps) {
+    const [name, setName] = useState('');
+    const [buyPrice, setBuyPrice] = useState('');
+    const [sellPrice, setSellPrice] = useState('');
+    const [quantity, setQuantity] = useState('');
+    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
     const [buyUnit, setBuyUnit] = useState<'pcs' | 'doz'>('pcs');
     const { colors, isDark } = useAppTheme();
 
