@@ -232,18 +232,18 @@ export function ProductsScreen() {
                             <View style={{ flex: 1 }}>
                                 <View style={styles.labelRow}>
                                     <Text style={[styles.label, { color: colors.textMuted }]}>QTY</Text>
-                                    <View style={styles.unitToggle}>
+                                    <View style={[styles.unitToggle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }]}>
                                         <TouchableOpacity 
                                             onPress={() => setBuyUnit('pcs')}
-                                            style={[styles.unitBtn, buyUnit === 'pcs' && styles.activeUnitBtn]}
+                                            style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
                                         >
-                                            <Text style={[styles.unitBtnText, buyUnit === 'pcs' && styles.activeUnitText]}>PCS</Text>
+                                            <Text style={[styles.unitBtnText, buyUnit === 'pcs' ? { color: '#FFF' } : { color: colors.textMuted }]}>PCS</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity 
                                             onPress={() => setBuyUnit('doz')}
-                                            style={[styles.unitBtn, buyUnit === 'doz' && styles.activeUnitBtn]}
+                                            style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
                                         >
-                                            <Text style={[styles.unitBtnText, buyUnit === 'doz' && styles.activeUnitText]}>DOZ</Text>
+                                            <Text style={[styles.unitBtnText, buyUnit === 'doz' ? { color: '#FFF' } : { color: colors.textMuted }]}>DOZ</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -350,35 +350,21 @@ const styles = StyleSheet.create({
     labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     unitToggle: { 
         flexDirection: 'row', 
-        backgroundColor: '#F1F5F9', // Sleek slate gray
-        borderRadius: 10, 
+        borderRadius: 12, 
         padding: 4,
-        borderWidth: 1,
-        borderColor: '#E2E8F0'
+        alignItems: 'center'
     },
     unitBtn: { 
         paddingHorizontal: 12, 
         paddingVertical: 6, 
         borderRadius: 8,
-        minWidth: 44,
+        minWidth: 48,
         alignItems: 'center'
     },
     unitBtnText: { 
         fontSize: 10, 
-        fontWeight: '800', 
-        color: '#64748B',
+        fontWeight: '900', 
         letterSpacing: 0.5
-    },
-    activeUnitBtn: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    activeUnitText: {
-        color: '#000000', // Or colors.primary
     },
     row: { flexDirection: 'row', gap: 16 },
     input: { 

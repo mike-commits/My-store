@@ -81,18 +81,18 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
                     <View style={{ flex: 1 }}>
                         <View style={styles.labelRow}>
                             <Text style={[styles.label, { color: colors.textMuted }]}>QTY</Text>
-                            <View style={styles.unitToggle}>
+                            <View style={[styles.unitToggle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }]}>
                                 <TouchableOpacity 
                                     onPress={() => setBuyUnit('pcs')}
-                                    style={[styles.unitBtn, buyUnit === 'pcs' && styles.activeUnitBtn]}
+                                    style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
                                 >
-                                    <Text style={[styles.unitBtnText, buyUnit === 'pcs' && styles.activeUnitText]}>PCS</Text>
+                                    <Text style={[styles.unitBtnText, buyUnit === 'pcs' ? { color: '#FFF' } : { color: colors.textMuted }]}>PCS</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
                                     onPress={() => setBuyUnit('doz')}
-                                    style={[styles.unitBtn, buyUnit === 'doz' && styles.activeUnitBtn]}
+                                    style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
                                 >
-                                    <Text style={[styles.unitBtnText, buyUnit === 'doz' && styles.activeUnitText]}>DOZ</Text>
+                                    <Text style={[styles.unitBtnText, buyUnit === 'doz' ? { color: '#FFF' } : { color: colors.textMuted }]}>DOZ</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -118,34 +118,20 @@ const styles = StyleSheet.create({
     labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     unitToggle: { 
         flexDirection: 'row', 
-        backgroundColor: '#F1F5F9',
-        borderRadius: 8, 
+        borderRadius: 10, 
         padding: 4,
-        borderWidth: 1,
-        borderColor: '#E2E8F0'
+        alignItems: 'center'
     },
     unitBtn: { 
         paddingHorizontal: 12, 
         paddingVertical: 5, 
-        borderRadius: 6,
-        minWidth: 40,
+        borderRadius: 8,
+        minWidth: 44,
         alignItems: 'center'
     },
     unitBtnText: { 
         fontSize: 10, 
-        fontWeight: '800', 
-        color: '#64748B'
-    },
-    activeUnitBtn: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 1,
-    },
-    activeUnitText: {
-        color: '#000',
+        fontWeight: '900'
     },
     input: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16, marginBottom: 20 },
     row: { flexDirection: 'row', gap: 16 }
