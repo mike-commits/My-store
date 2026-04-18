@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../domain/useStore';
 import { Shipment } from '../../domain/models';
@@ -22,6 +22,7 @@ export function ShipmentsScreen() {
     // Optional product link to update inventory
     const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
     const [quantity, setQuantity] = useState('');
+    const [shipUnit, setShipUnit] = useState<'pcs' | 'doz'>('pcs');
     const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
     
     useEffect(() => {
@@ -35,9 +36,14 @@ export function ShipmentsScreen() {
         }
 
         try {
+            let finalQty = parseInt(quantity, 10) || 0;
+            if (shipUnit === 'doz') {
+                finalQty = finalQty * 12;
+            }
+
             const items = selectedProductId ? [{
                 product_id: selectedProductId,
-                quantity: parseInt(quantity, 10) || 0
+                quantity: finalQty
             }] : [];
 
             await addShipment(
@@ -63,6 +69,7 @@ export function ShipmentsScreen() {
         setAmount('');
         setSelectedProductId(null);
         setQuantity('');
+        setShipUnit('pcs');
         setDateInput(new Date().toISOString().split('T')[0]);
     };
 
@@ -236,10 +243,26 @@ export function ShipmentsScreen() {
 
                         {selectedProductId && (
                             <View style={{ marginTop: 12 }}>
-                                <Text style={[styles.label, { color: colors.textMuted }]}>QUANTITY TO ADD</Text>
+                                <View style={styles.labelRow}>
+                                    <Text style={[styles.label, { color: colors.textMuted }]}>QUANTITY TO ADD</Text>
+                                    <View style={styles.unitToggle}>
+                                        <TouchableOpacity 
+                                            onPress={() => setShipUnit('pcs')}
+                                            style={[styles.unitBtn, shipUnit === 'pcs' && { backgroundColor: colors.primary }]}
+                                        >
+                                            <Text style={[styles.unitBtnText, shipUnit === 'pcs' && { color: '#FFF' }]}>PCS</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            onPress={() => setShipUnit('doz')}
+                                            style={[styles.unitBtn, shipUnit === 'doz' && { backgroundColor: colors.primary }]}
+                                        >
+                                            <Text style={[styles.unitBtnText, shipUnit === 'doz' && { color: '#FFF' }]}>DOZ</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                                 <TextInput 
                                     style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                    placeholder="0" 
+                                    placeholder={shipUnit === 'doz' ? "Quantity in Dozens" : "Quantity in Pieces"}
                                     placeholderTextColor={colors.textMuted}
                                     value={quantity} 
                                     onChangeText={setQuantity} 
@@ -316,6 +339,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 16
     },
+    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    unitToggle: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 8, padding: 2 },
+    unitBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    unitBtnText: { fontSize: 8, fontWeight: '900', color: '#6B7280' },
     modalActions: { flexDirection: 'row', gap: 16, marginTop: 20, paddingBottom: 40 }
 });
 ;
