@@ -17,14 +17,7 @@ export function ProductsScreen() {
     const navigation = useNavigation<any>();
     const [modalVisible, setModalVisible] = useState(false);
     
-    const [editingId, setEditingId] = useState<number | null>(null);
-    const [name, setName] = useState('');
-    const [category, setCategory] = useState('Others');
-    const [buyPrice, setBuyPrice] = useState('');
-    const [sellPrice, setSellPrice] = useState('');
-    const [quantity, setQuantity] = useState('');
-    const [notes, setNotes] = useState('');
-    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
+    const [buyUnit, setBuyUnit] = useState<'pcs' | 'doz'>('pcs');
 
     const CATEGORIES = [
         'Shoes (Men)', 'Shoes (Women)', 'Shoes (Kids)',
@@ -44,6 +37,7 @@ export function ProductsScreen() {
         setSellPrice('');
         setQuantity('');
         setNotes('');
+        setBuyUnit('pcs');
         setDateInput(new Date().toISOString().split('T')[0]);
     };
 
@@ -54,12 +48,20 @@ export function ProductsScreen() {
         }
 
         try {
+            let finalBuyPrice = parseFloat(buyPrice);
+            let finalQuantity = parseInt(quantity, 10);
+
+            if (buyUnit === 'doz') {
+                finalBuyPrice = finalBuyPrice / 12;
+                finalQuantity = finalQuantity * 12;
+            }
+
             const productData = {
                 name,
                 category,
-                buy_price: parseFloat(buyPrice),
+                buy_price: finalBuyPrice,
                 sell_price: parseFloat(sellPrice),
-                quantity: parseInt(quantity, 10),
+                quantity: finalQuantity,
                 notes,
                 date: new Date(dateInput).toISOString()
             };
@@ -220,7 +222,36 @@ export function ProductsScreen() {
 
                         <View style={styles.row}>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.label, { color: colors.textMuted }]}>BUY PRICE (SSP)</Text>
+                                <View style={styles.labelRow}>
+                                    <Text style={[styles.label, { color: colors.textMuted }]}>QTY</Text>
+                                    <View style={styles.unitToggle}>
+                                        <TouchableOpacity 
+                                            onPress={() => setBuyUnit('pcs')}
+                                            style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
+                                        >
+                                            <Text style={[styles.unitBtnText, buyUnit === 'pcs' && { color: '#FFF' }]}>PCS</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            onPress={() => setBuyUnit('doz')}
+                                            style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
+                                        >
+                                            <Text style={[styles.unitBtnText, buyUnit === 'doz' && { color: '#FFF' }]}>DOZ</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                                <TextInput 
+                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
+                                    placeholder={buyUnit === 'doz' ? "0 doz" : "0 pcs"} 
+                                    placeholderTextColor={colors.textMuted}
+                                    value={quantity} 
+                                    onChangeText={setQuantity} 
+                                    keyboardType="numeric" 
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.label, { color: colors.textMuted }]}>
+                                    BUY PRICE {buyUnit === 'doz' ? '(SSP/DOZ)' : '(SSP/PC)'}
+                                </Text>
                                 <TextInput 
                                     style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
                                     placeholder="0" 
@@ -230,20 +261,9 @@ export function ProductsScreen() {
                                     keyboardType="numeric" 
                                 />
                             </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.label, { color: colors.textMuted }]}>SELL PRICE (SSP)</Text>
-                                <TextInput 
-                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                    placeholder="0" 
-                                    placeholderTextColor={colors.textMuted}
-                                    value={sellPrice} 
-                                    onChangeText={setSellPrice} 
-                                    keyboardType="numeric" 
-                                />
-                            </View>
                         </View>
 
-                        <Text style={[styles.label, { color: colors.textMuted }]}>INITIAL QUANTITY</Text>
+                        <Text style={[styles.label, { color: colors.textMuted }]}>SELL PRICE (SSP/PC)</Text>
                         <TextInput 
                             style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
                             placeholder="0" 
@@ -319,6 +339,10 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 24, fontWeight: '900' },
     formSection: { marginBottom: 24 },
     label: { fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
+    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    unitToggle: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 8, padding: 2 },
+    unitBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    unitBtnText: { fontSize: 8, fontWeight: '900', color: '#6B7280' },
     row: { flexDirection: 'row', gap: 16 },
     input: { 
         padding: 16, 
