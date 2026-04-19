@@ -117,12 +117,12 @@ const styles = StyleSheet.create({
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
     modalTitle: { fontSize: 24, fontWeight: '900' },
     label: { fontSize: 10, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
-    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    unitToggle: { 
+    labelRow: { 
         flexDirection: 'row', 
-        borderRadius: 10, 
-        padding: 4,
-        alignItems: 'center'
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 8,
+        minHeight: 40
     },
     unitBtn: { 
         paddingHorizontal: 12, 

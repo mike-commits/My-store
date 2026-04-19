@@ -229,7 +229,6 @@ export function ProductsScreen() {
                             onChangeText={setName} 
                         />
 
-                        <Text style={[styles.label, { color: colors.textMuted }]}>CATEGORY</Text>
                         <CategoryPicker 
                             value={category} 
                             onSelect={setCategory} 
@@ -360,12 +359,19 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 24, fontWeight: '900' },
     formSection: { marginBottom: 24 },
     label: { fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
-    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    labelRow: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 8,
+        minHeight: 40, // Force vertical alignment regardless of toggle width
+    },
     unitToggle: { 
         flexDirection: 'row', 
         borderRadius: 12, 
         padding: 4,
-        alignItems: 'center'
+        alignItems: 'center',
+        marginVertical: 4
     },
     unitBtn: { 
         paddingHorizontal: 12, 
