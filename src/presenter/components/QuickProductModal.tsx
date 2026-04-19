@@ -80,7 +80,7 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
                 <View style={styles.row}>
                     <View style={{ flex: 1 }}>
                         <View style={styles.labelRow}>
-                            <Text style={[styles.label, { color: colors.textMuted }]}>QTY</Text>
+                            <Text style={[styles.label, { color: colors.textMuted }]}>QUANTITY</Text>
                             <View style={[styles.unitToggle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }]}>
                                 <TouchableOpacity 
                                     onPress={() => setBuyUnit('pcs')}
@@ -99,7 +99,9 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
                         <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder={buyUnit === 'doz' ? "0 doz" : "0 pcs"} placeholderTextColor={colors.textMuted} value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                        <View style={styles.labelRow}>
+                            <Text style={[styles.label, { color: colors.textMuted }]}>DATE</Text>
+                        </View>
                         <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={dateInput} onChangeText={setDateInput} />
                     </View>
                 </View>
