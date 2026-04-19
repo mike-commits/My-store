@@ -26,9 +26,34 @@ export const useStore = () => {
     // Sync local state with global state
     const forceUpdate = useCallback(() => setDummy({}), []);
 
+    const refreshProducts = useCallback(async () => {
+        globalProducts = await productRepo.getProducts();
+        notifyListeners();
+    }, []);
+
+    const refreshShipments = useCallback(async () => {
+        globalShipments = await shipmentRepo.getShipments();
+        notifyListeners();
+    }, []);
+
+    const refreshSales = useCallback(async () => {
+        globalSales = await saleRepo.getSales();
+        notifyListeners();
+    }, []);
+
+    const refreshFinance = useCallback(async () => {
+        const [pay, exp] = await Promise.all([
+            paymentRepo.getPayments(),
+            expenseRepo.getExpenses()
+        ]);
+        globalPayments = pay;
+        globalExpenses = exp;
+        notifyListeners();
+    }, []);
+
     const refreshAll = useCallback(async () => {
         try {
-            console.log('[STORE] Refreshing data...');
+            console.log('[STORE] Intelligent Refreshing...');
             const [
                 products,
                 shipments,
@@ -52,7 +77,6 @@ export const useStore = () => {
             globalReports = reports;
             globalExpenses = expenses;
             
-            console.log('[STORE] Data refreshed successfully');
             notifyListeners();
         } catch (error) {
             console.error('[STORE] Refresh failed:', error);
@@ -61,7 +85,7 @@ export const useStore = () => {
 
     useEffect(() => {
         listeners.push(forceUpdate);
-        // Initial load if empty
+        // Load data on start if missing
         if (globalProducts.length === 0) {
             refreshAll().catch(console.error);
         }
@@ -81,10 +105,8 @@ export const useStore = () => {
 
     const addProduct = async (product: Omit<Product, 'id'>) => {
         try {
-            console.log('[STORE] Adding Product:', product.name);
             await productRepo.addProduct(product);
-            await refreshAll();
-            console.log('[STORE] Product added successfully');
+            await refreshProducts(); // Only sync products after adding
         } catch (error) {
             console.error('[STORE] Add product failed:', error);
             throw error;
@@ -93,9 +115,8 @@ export const useStore = () => {
 
     const updateProduct = async (product: Product) => {
         try {
-            console.log('[STORE] Updating Product:', product.id);
             await productRepo.updateProduct(product);
-            await refreshAll();
+            await refreshProducts();
         } catch (error) {
             console.error('[STORE] Update product failed:', error);
             throw error;
@@ -104,61 +125,64 @@ export const useStore = () => {
 
     const deleteProduct = async (id: number) => {
         await productRepo.deleteProduct(id);
-        await refreshAll();
+        await refreshProducts();
     };
 
     const addShipment = async (date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) => {
         await shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
-        await refreshAll();
+        await Promise.all([refreshShipments(), refreshProducts()]); // Shipments affect inventory
     };
 
     const addSale = async (productId: number, date: string, quantity: number, sellPrice: number) => {
         const product = globalProducts.find(p => p.id === productId);
         const buyPrice = product?.buy_price || 0;
         await saleRepo.addSale(productId, date, quantity, buyPrice, sellPrice);
-        await refreshAll();
+        await Promise.all([refreshSales(), refreshProducts()]); // Sales affect inventory
     };
 
     const addPayment = async (amount: number, date: string, notes: string) => {
         await paymentRepo.addPayment(amount, date, notes);
-        await refreshAll();
+        await refreshFinance();
     };
 
     const deletePayment = async (id: number) => {
         await paymentRepo.deletePayment(id);
-        await refreshAll();
+        await refreshFinance();
     };
 
     const updatePayment = async (id: number, amount: number, date: string, notes: string) => {
         await paymentRepo.updatePayment(id, amount, new Date(date).toISOString(), notes);
-        await refreshAll();
+        await refreshFinance();
     };
 
     const addManualReport = async (title: string, content: string, dateOption?: string) => {
         await reportRepo.addReport(title, content, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString());
-        await refreshAll();
+        globalReports = await reportRepo.getReports();
+        notifyListeners();
     };
 
     const deleteManualReport = async (id: number) => {
         await reportRepo.deleteReport(id);
-        await refreshAll();
+        globalReports = await reportRepo.getReports();
+        notifyListeners();
     };
 
     const updateManualReport = async (id: number, title: string, content: string, date: string) => {
         await reportRepo.updateReport(id, title, content, new Date(date).toISOString());
-        await refreshAll();
+        globalReports = await reportRepo.getReports();
+        notifyListeners();
     };
     
     const addExpense = async (amount: number, description: string, dateOption?: string) => {
         const available = getAvailableCash();
         if (amount > available) throw new Error(`Insufficient funds for expense! Required: SSP ${amount.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
         await expenseRepo.addExpense(amount, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString(), description);
-        await refreshAll();
+        await refreshFinance();
     };
 
     const deleteExpense = async (id: number) => {
         await expenseRepo.deleteExpense(id);
-        await refreshAll();
+        await refreshFinance();
     };
 
     const updateExpense = async (id: number, amount: number, description: string, date: string) => {
@@ -167,7 +191,7 @@ export const useStore = () => {
         const available = getAvailableCash();
         if (amount - oldAmt > available) throw new Error(`Insufficient funds to increase expense! Required: SSP ${(amount - oldAmt).toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
         await expenseRepo.updateExpense(id, amount, new Date(date).toISOString(), description);
-        await refreshAll();
+        await refreshFinance();
     };
 
     // Logical Business Calculations

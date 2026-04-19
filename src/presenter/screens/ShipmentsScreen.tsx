@@ -25,9 +25,6 @@ export function ShipmentsScreen() {
     const [shipUnit, setShipUnit] = useState<'pcs' | 'doz'>('pcs');
     const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
     
-    useEffect(() => {
-        refreshAll();
-    }, [refreshAll]);
 
     const handleSave = async () => {
         if (!description && !selectedProductId) {

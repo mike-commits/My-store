@@ -33,9 +33,6 @@ export function ProductsScreen() {
         'Jewelry', 'Accessories', 'Others'
     ];
 
-    useEffect(() => {
-        refreshAll();
-    }, [refreshAll]);
 
     const resetForm = () => {
         setEditingId(null);

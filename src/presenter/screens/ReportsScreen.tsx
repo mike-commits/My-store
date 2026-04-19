@@ -51,9 +51,6 @@ export function ReportsScreen() {
     const [reportContent, setReportContent] = useState('');
     const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-    useEffect(() => {
-        refreshAll();
-    }, [refreshAll]);
 
     const totalPaymentsReceived = payments.reduce((sum, p) => sum + p.amount, 0);
     const outstandingBalance = stats.totalSalesRevenue - totalPaymentsReceived;

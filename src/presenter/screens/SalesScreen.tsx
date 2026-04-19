@@ -20,9 +20,6 @@ export function SalesScreen() {
     const [sellPriceOverride, setSellPriceOverride] = useState('');
     const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
 
-    useEffect(() => {
-        refreshAll();
-    }, [refreshAll]);
 
     const handleProductSelect = (id: number) => {
         const p = products.find(x => x.id === id);

@@ -17,9 +17,6 @@ export function DashboardScreen() {
 
     const [productModalVisible, setProductModalVisible] = useState(false);
     
-    useEffect(() => {
-        refreshAll();
-    }, [refreshAll]);
 
     const totalItems = products.length;
     const totalStockCount = products.reduce((sum, p) => sum + p.quantity, 0);
