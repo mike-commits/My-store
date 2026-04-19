@@ -193,7 +193,17 @@ export function ProductsScreen() {
                 </View>
                 <AppButton 
                     title="+ Add New" 
-                    onPress={() => { resetForm(); setModalVisible(true); }}
+                    onPress={() => { 
+                        console.log('[UI] Add New clicked');
+                        try {
+                            resetForm(); 
+                            console.log('[UI] Form reset');
+                            setModalVisible(true); 
+                            console.log('[UI] modalVisible set to true');
+                        } catch (err) {
+                            console.error('[UI] Crash in Add New button:', err);
+                        }
+                    }}
                     style={{ borderRadius: 30, paddingHorizontal: 20 }}
                 />
             </View>
