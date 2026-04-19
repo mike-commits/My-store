@@ -229,6 +229,7 @@ export function ProductsScreen() {
                             onChangeText={setName} 
                         />
 
+                        <Text style={[styles.label, { color: colors.textMuted }]}>CATEGORY</Text>
                         <CategoryPicker 
                             value={category} 
                             onSelect={setCategory} 
@@ -237,8 +238,33 @@ export function ProductsScreen() {
 
                         <View style={styles.row}>
                             <View style={{ flex: 1 }}>
+                                <Text style={[styles.label, { color: colors.textMuted }]}>BUY PRICE {buyUnit === 'doz' ? '(SSP/DOZ)' : '(SSP/PC)'}</Text>
+                                <TextInput 
+                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
+                                    placeholder="0" 
+                                    placeholderTextColor={colors.textMuted}
+                                    value={buyPrice} 
+                                    onChangeText={setBuyPrice} 
+                                    keyboardType="numeric" 
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.label, { color: colors.textMuted }]}>SELL PRICE (SSP/PC)</Text>
+                                <TextInput 
+                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
+                                    placeholder="0" 
+                                    placeholderTextColor={colors.textMuted}
+                                    value={sellPrice} 
+                                    onChangeText={setSellPrice} 
+                                    keyboardType="numeric" 
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.row}>
+                            <View style={{ flex: 1 }}>
                                 <View style={styles.labelRow}>
-                                    <Text style={[styles.label, { color: colors.textMuted }]}>QTY</Text>
+                                    <Text style={[styles.label, { color: colors.textMuted }]}>QUANTITY</Text>
                                     <View style={[styles.unitToggle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }]}>
                                         <TouchableOpacity 
                                             onPress={() => setBuyUnit('pcs')}
@@ -264,42 +290,20 @@ export function ProductsScreen() {
                                 />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.label, { color: colors.textMuted }]}>
-                                    BUY PRICE {buyUnit === 'doz' ? '(SSP/DOZ)' : '(SSP/PC)'}
-                                </Text>
+                                <Text style={[styles.label, { color: colors.textMuted }]}>DATE ADDED</Text>
                                 <TextInput 
                                     style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                    placeholder="0" 
+                                    placeholder="YYYY-MM-DD" 
                                     placeholderTextColor={colors.textMuted}
-                                    value={buyPrice} 
-                                    onChangeText={setBuyPrice} 
-                                    keyboardType="numeric" 
+                                    value={dateInput} 
+                                    onChangeText={setDateInput} 
                                 />
                             </View>
                         </View>
 
-                        <Text style={[styles.label, { color: colors.textMuted }]}>SELL PRICE (SSP/PC)</Text>
-                        <TextInput 
-                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                            placeholder="0" 
-                            placeholderTextColor={colors.textMuted}
-                            value={sellPrice} 
-                            onChangeText={setSellPrice} 
-                            keyboardType="numeric" 
-                        />
-
-                        <Text style={[styles.label, { color: colors.textMuted }]}>DATE ADDED (YYYY-MM-DD)</Text>
-                        <TextInput 
-                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                            placeholder="YYYY-MM-DD" 
-                            placeholderTextColor={colors.textMuted}
-                            value={dateInput} 
-                            onChangeText={setDateInput} 
-                        />
-
                         <Text style={[styles.label, { color: colors.textMuted }]}>NOTES & DESCRIPTION</Text>
                         <TextInput 
-                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 100, textAlignVertical: 'top' }]} 
+                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 80, textAlignVertical: 'top' }]} 
                             placeholder="Add categorize details, size, or special notes here..." 
                             placeholderTextColor={colors.textMuted}
                             value={notes} 
