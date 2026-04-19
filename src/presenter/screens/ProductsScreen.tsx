@@ -185,18 +185,16 @@ export function ProductsScreen() {
             <View style={styles.header}>
                 <View>
                     <Text style={[styles.headerAccent, { color: colors.primary }]}>INVENTORY</Text>
-                    <Text style={[styles.title, { color: colors.text }]}>All Products</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>All Products (v11)</Text>
                     <Text style={[styles.subtitle, { color: colors.textMuted }]}>{products.length} Items Listed</Text>
                 </View>
                 <AppButton 
                     title="+ Add New" 
                     onPress={() => { 
-                        console.log('[UI] Add New clicked');
+                        console.log('[UI v11] Add New clicked');
                         try {
                             resetForm(); 
-                            console.log('[UI] Form reset');
                             setModalVisible(true); 
-                            console.log('[UI] modalVisible set to true');
                         } catch (err) {
                             console.error('[UI] Crash in Add New button:', err);
                         }
@@ -261,24 +259,30 @@ export function ProductsScreen() {
                         </View>
 
                         <View style={styles.row}>
-                            <View style={{ flex: 1 }}>
-                                <View style={styles.labelRow}>
-                                    <Text style={[styles.label, { color: colors.textMuted }]}>QUANTITY</Text>
-                                    <View style={[styles.unitToggle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }]}>
-                                        <TouchableOpacity 
-                                            onPress={() => setBuyUnit('pcs')}
-                                            style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
-                                        >
-                                            <Text style={[styles.unitBtnText, buyUnit === 'pcs' ? { color: '#FFF' } : { color: colors.textMuted }]}>PCS</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            onPress={() => setBuyUnit('doz')}
-                                            style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
-                                        >
-                                            <Text style={[styles.unitBtnText, buyUnit === 'doz' ? { color: '#FFF' } : { color: colors.textMuted }]}>DOZ</Text>
-                                        </TouchableOpacity>
-                                    </View>
+                            <View style={[styles.labelRow, { flex: 1, marginBottom: 0 }]}>
+                                <Text style={[styles.label, { color: colors.textMuted, marginBottom: 0 }]}>QUANTITY</Text>
+                                <View style={[styles.unitToggle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6', marginVertical: 0 }]}>
+                                    <TouchableOpacity 
+                                        onPress={() => setBuyUnit('pcs')}
+                                        style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
+                                    >
+                                        <Text style={[styles.unitBtnText, buyUnit === 'pcs' ? { color: '#FFF' } : { color: colors.textMuted }]}>PCS</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        onPress={() => setBuyUnit('doz')}
+                                        style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
+                                    >
+                                        <Text style={[styles.unitBtnText, buyUnit === 'doz' ? { color: '#FFF' } : { color: colors.textMuted }]}>DOZ</Text>
+                                    </TouchableOpacity>
                                 </View>
+                            </View>
+                            <View style={[styles.labelRow, { flex: 1, marginBottom: 0 }]}>
+                                <Text style={[styles.label, { color: colors.textMuted, marginBottom: 0 }]}>DATE ADDED</Text>
+                            </View>
+                        </View>
+
+                        <View style={[styles.row, { marginTop: 8 }]}>
+                            <View style={{ flex: 1 }}>
                                 <TextInput 
                                     style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
                                     placeholder={buyUnit === 'doz' ? "0 doz" : "0 pcs"} 
@@ -289,9 +293,6 @@ export function ProductsScreen() {
                                 />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <View style={styles.labelRow}>
-                                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE ADDED</Text>
-                                </View>
                                 <TextInput 
                                     style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
                                     placeholder="YYYY-MM-DD" 
