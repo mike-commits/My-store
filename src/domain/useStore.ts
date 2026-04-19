@@ -27,30 +27,36 @@ export const useStore = () => {
     const forceUpdate = useCallback(() => setDummy({}), []);
 
     const refreshAll = useCallback(async () => {
-        const [
-            products,
-            shipments,
-            sales,
-            payments,
-            reports,
-            expenses
-        ] = await Promise.all([
-            productRepo.getProducts(),
-            shipmentRepo.getShipments(),
-            saleRepo.getSales(),
-            paymentRepo.getPayments(),
-            reportRepo.getReports(),
-            expenseRepo.getExpenses()
-        ]);
+        try {
+            console.log('[STORE] Refreshing data...');
+            const [
+                products,
+                shipments,
+                sales,
+                payments,
+                reports,
+                expenses
+            ] = await Promise.all([
+                productRepo.getProducts(),
+                shipmentRepo.getShipments(),
+                saleRepo.getSales(),
+                paymentRepo.getPayments(),
+                reportRepo.getReports(),
+                expenseRepo.getExpenses()
+            ]);
 
-        globalProducts = products;
-        globalShipments = shipments;
-        globalSales = sales;
-        globalPayments = payments;
-        globalReports = reports;
-        globalExpenses = expenses;
-        
-        notifyListeners();
+            globalProducts = products;
+            globalShipments = shipments;
+            globalSales = sales;
+            globalPayments = payments;
+            globalReports = reports;
+            globalExpenses = expenses;
+            
+            console.log('[STORE] Data refreshed successfully');
+            notifyListeners();
+        } catch (error) {
+            console.error('[STORE] Refresh failed:', error);
+        }
     }, []);
 
     useEffect(() => {
@@ -74,13 +80,26 @@ export const useStore = () => {
     };
 
     const addProduct = async (product: Omit<Product, 'id'>) => {
-        await productRepo.addProduct(product);
-        await refreshAll();
+        try {
+            console.log('[STORE] Adding Product:', product.name);
+            await productRepo.addProduct(product);
+            await refreshAll();
+            console.log('[STORE] Product added successfully');
+        } catch (error) {
+            console.error('[STORE] Add product failed:', error);
+            throw error;
+        }
     };
 
     const updateProduct = async (product: Product) => {
-        await productRepo.updateProduct(product);
-        await refreshAll();
+        try {
+            console.log('[STORE] Updating Product:', product.id);
+            await productRepo.updateProduct(product);
+            await refreshAll();
+        } catch (error) {
+            console.error('[STORE] Update product failed:', error);
+            throw error;
+        }
     };
 
     const deleteProduct = async (id: number) => {
