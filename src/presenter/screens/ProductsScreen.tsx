@@ -290,7 +290,9 @@ export function ProductsScreen() {
                                 />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.label, { color: colors.textMuted }]}>DATE ADDED</Text>
+                                <View style={styles.labelRow}>
+                                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE ADDED</Text>
+                                </View>
                                 <TextInput 
                                     style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
                                     placeholder="YYYY-MM-DD" 
