@@ -53,7 +53,6 @@ export const useStore = () => {
 
     const refreshAll = useCallback(async () => {
         try {
-            console.log('[STORE] Intelligent Refreshing...');
             const [
                 products,
                 shipments,

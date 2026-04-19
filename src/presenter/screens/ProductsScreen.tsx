@@ -185,13 +185,12 @@ export function ProductsScreen() {
             <View style={styles.header}>
                 <View>
                     <Text style={[styles.headerAccent, { color: colors.primary }]}>INVENTORY</Text>
-                    <Text style={[styles.title, { color: colors.text }]}>All Products (v11)</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>All Products</Text>
                     <Text style={[styles.subtitle, { color: colors.textMuted }]}>{products.length} Items Listed</Text>
                 </View>
                 <AppButton 
                     title="+ Add New" 
                     onPress={() => { 
-                        console.log('[UI v11] Add New clicked');
                         try {
                             resetForm(); 
                             setModalVisible(true); 
