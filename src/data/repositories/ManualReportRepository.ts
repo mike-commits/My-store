@@ -1,24 +1,34 @@
-import { getDb } from '../database';
+import { supabase } from '../supabase';
 import { ManualReport } from '../../domain/models';
 
 export class ManualReportRepository {
-    getReports(): ManualReport[] {
-        const db = getDb();
-        return db.getAllSync<ManualReport>('SELECT * FROM manual_reports ORDER BY date DESC');
+    async getReports(): Promise<ManualReport[]> {
+        const { data, error } = await supabase
+            .from('manual_reports')
+            .select('*')
+            .order('date', { ascending: false });
+        
+        if (error) throw error;
+        return data || [];
     }
 
-    addReport(title: string, content: string, date: string) {
-        const db = getDb();
-        db.runSync('INSERT INTO manual_reports (date, title, content) VALUES (?, ?, ?)', [date, title, content]);
+    async addReport(title: string, content: string, date: string) {
+        const { error } = await supabase
+            .from('manual_reports')
+            .insert([{ date, title, content }]);
+        if (error) throw error;
     }
 
-    deleteReport(id: number) {
-        const db = getDb();
-        db.runSync('DELETE FROM manual_reports WHERE id = ?', [id]);
+    async deleteReport(id: number) {
+        const { error } = await supabase.from('manual_reports').delete().eq('id', id);
+        if (error) throw error;
     }
 
-    updateReport(id: number, title: string, content: string, date: string) {
-        const db = getDb();
-        db.runSync('UPDATE manual_reports SET title = ?, content = ?, date = ? WHERE id = ?', [title, content, date, id]);
+    async updateReport(id: number, title: string, content: string, date: string) {
+        const { error } = await supabase
+            .from('manual_reports')
+            .update({ title, content, date })
+            .eq('id', id);
+        if (error) throw error;
     }
 }

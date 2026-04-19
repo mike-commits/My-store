@@ -74,7 +74,7 @@ export function ShipmentsScreen() {
     };
 
     const renderItem = ({ item }: { item: Shipment }) => {
-        const items = shipmentRepo.getShipmentItems(item.id);
+        const shipmentItems = item.items || [];
 
         return (
             <Card>
@@ -93,23 +93,23 @@ export function ShipmentsScreen() {
                         </View>
                     ) : null}
                 </View>
-
+                
                 {item.description ? (
                     <View style={[styles.descriptionContainer, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border }]}>
                         <Text style={[styles.descriptionText, { color: colors.textSecondary }]}>{item.description}</Text>
                     </View>
                 ) : null}
 
-                {items.length > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-                {items.length > 0 && <Text style={[styles.itemsTitle, { color: colors.textMuted }]}>Inventory Updates</Text>}
-                {items.map(shipItem => (
+                {shipmentItems.length > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+                {shipmentItems.length > 0 && <Text style={[styles.itemsTitle, { color: colors.textMuted }]}>Inventory Updates</Text>}
+                {shipmentItems.map(shipItem => (
                     <View key={shipItem.id} style={styles.itemRow}>
                         <Text style={[styles.itemText, { color: colors.primary }]}>{shipItem.product_name}</Text>
                         <Text style={[styles.itemQty, { color: colors.primary }]}>+{shipItem.quantity}</Text>
                     </View>
                 ))}
 
-                <View style={[styles.footerRow, { borderTopWidth: items.length > 0 ? 0 : 1, borderTopColor: colors.border, paddingTop: items.length > 0 ? 0 : 12 }]}>
+                <View style={[styles.footerRow, { borderTopWidth: shipmentItems.length > 0 ? 0 : 1, borderTopColor: colors.border, paddingTop: shipmentItems.length > 0 ? 0 : 12 }]}>
                     <Text style={[styles.costText, { color: colors.text }]}>Cost: SSP {item.shipping_cost?.toFixed(2) || '0.00'}</Text>
                     <View style={styles.cardActions}>
                         <AppButton 

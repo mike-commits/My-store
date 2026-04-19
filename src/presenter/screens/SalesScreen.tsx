@@ -81,8 +81,8 @@ export function SalesScreen() {
     );
 
     const handleDelete = (id: number) => {
-        const performDelete = () => {
-            deleteSale(id);
+        const performDelete = async () => {
+            await deleteSale(id);
         };
 
         if (Platform.OS === 'web') {

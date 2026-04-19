@@ -98,12 +98,8 @@ function MainNavigator() {
     const [dbInitialized, setDbInitialized] = useState(false);
 
     useEffect(() => {
-        try {
-            initDb();
-            setDbInitialized(true);
-        } catch (e) {
-            console.error("Database initialization failed:", e);
-        }
+        // Local database initialization is no longer required with Supabase migration
+        setDbInitialized(true);
     }, []);
 
     if (!dbInitialized) {

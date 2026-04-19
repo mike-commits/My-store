@@ -1,41 +1,58 @@
-import { getDb } from '../database';
+import { supabase } from '../supabase';
 import { Sale } from '../../domain/models';
 
 export class SaleRepository {
-    getSales(): Sale[] {
-        const db = getDb();
-        return db.getAllSync<Sale>(`
-            SELECT s.*, p.name as product_name 
-            FROM sales s 
-            JOIN products p ON s.product_id = p.id 
-            ORDER BY s.date DESC
-        `);
+    async getSales(): Promise<Sale[]> {
+        const { data, error } = await supabase
+            .from('sales')
+            .select(`
+                *,
+                products (name)
+            `)
+            .order('date', { ascending: false });
+        
+        if (error) throw error;
+        
+        return (data || []).map((sale: any) => ({
+            ...sale,
+            product_name: sale.products?.name
+        }));
     }
 
-    getSale(id: number): Sale | null {
-        const db = getDb();
-        return db.getFirstSync<Sale>('SELECT * FROM sales WHERE id = ?', [id]);
+    async getSale(id: number): Promise<Sale | null> {
+        const { data, error } = await supabase
+            .from('sales')
+            .select('*')
+            .eq('id', id)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
     }
 
-    addSale(productId: number, date: string, quantity: number, buyPrice: number, sellPrice: number) {
-        const db = getDb();
-        db.withTransactionSync(() => {
-            db.runSync(
-                'INSERT INTO sales (product_id, date, quantity, buy_price, sell_price) VALUES (?, ?, ?, ?, ?)',
-                [productId, date, quantity, buyPrice, sellPrice]
-            );
-            db.runSync('UPDATE products SET quantity = quantity - ? WHERE id = ?', [quantity, productId]);
-        });
+    async addSale(productId: number, date: string, quantity: number, buyPrice: number, sellPrice: number) {
+        const { error: sError } = await supabase
+            .from('sales')
+            .insert([{ product_id: productId, date, quantity, buy_price: buyPrice, sell_price: sellPrice }]);
+        
+        if (sError) throw sError;
+
+        // Update product quantity
+        const { data: product } = await supabase.from('products').select('quantity').eq('id', productId).single();
+        if (product) {
+            await supabase.from('products').update({ quantity: product.quantity - quantity }).eq('id', productId);
+        }
     }
 
-    deleteSale(id: number) {
-        const db = getDb();
-        db.withTransactionSync(() => {
-            const sale = this.getSale(id);
-            if (sale) {
-                db.runSync('UPDATE products SET quantity = quantity + ? WHERE id = ?', [sale.quantity, sale.product_id]);
-                db.runSync('DELETE FROM sales WHERE id = ?', [id]);
+    async deleteSale(id: number) {
+        const sale = await this.getSale(id);
+        if (sale) {
+            const { data: product } = await supabase.from('products').select('quantity').eq('id', sale.product_id).single();
+            if (product) {
+                await supabase.from('products').update({ quantity: product.quantity + sale.quantity }).eq('id', sale.product_id);
             }
-        });
+            const { error } = await supabase.from('sales').delete().eq('id', id);
+            if (error) throw error;
+        }
     }
 }

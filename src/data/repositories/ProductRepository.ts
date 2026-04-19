@@ -1,65 +1,90 @@
-import { getDb } from '../database';
+import { supabase } from '../supabase';
 import { Product, ShipmentItem, Sale } from '../../domain/models';
 
 export class ProductRepository {
-    getProducts(): Product[] {
-        const db = getDb();
-        return db.getAllSync<Product>(`
-            SELECT p.*, 
-            COALESCE((SELECT SUM(quantity) FROM shipment_items WHERE product_id = p.id), 0) as shipped_quantity,
-            COALESCE((SELECT SUM(quantity) FROM sales WHERE product_id = p.id), 0) as sold_quantity
-            FROM products p
-        `);
+    async getProducts(): Promise<Product[]> {
+        const { data, error } = await supabase
+            .from('products')
+            .select(`
+                *,
+                shipment_items (quantity),
+                sales (quantity)
+            `);
+        
+        if (error) throw error;
+        
+        return (data || []).map((p: any) => ({
+            ...p,
+            shipped_quantity: p.shipment_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0,
+            sold_quantity: p.sales?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0
+        }));
     }
 
-    getProduct(id: number): Product | null {
-        const db = getDb();
-        return db.getFirstSync<Product>('SELECT * FROM products WHERE id = ?', [id]);
+    async getProduct(id: number): Promise<Product | null> {
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', id)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
     }
 
-    addProduct(product: Omit<Product, 'id'>) {
-        const db = getDb();
-        const result = db.runSync(
-            'INSERT INTO products (name, category, buy_price, sell_price, quantity, notes, date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [product.name, product.category, product.buy_price, product.sell_price, product.quantity, product.notes, product.date]
-        );
-        return result.lastInsertRowId;
+    async addProduct(product: Omit<Product, 'id'>) {
+        const { data, error } = await supabase
+            .from('products')
+            .insert([product])
+            .select()
+            .single();
+        
+        if (error) throw error;
+        return data.id;
     }
 
-    updateProduct(product: Product) {
-        const db = getDb();
-        db.runSync(
-            'UPDATE products SET name = ?, category = ?, buy_price = ?, sell_price = ?, quantity = ?, notes = ?, date = ? WHERE id = ?',
-            [product.name, product.category, product.buy_price, product.sell_price, product.quantity, product.notes, product.date, product.id]
-        );
+    async updateProduct(product: Product) {
+        const { error } = await supabase
+            .from('products')
+            .update(product)
+            .eq('id', product.id);
+        
+        if (error) throw error;
     }
 
-    deleteProduct(id: number) {
-        const db = getDb();
-        db.withTransactionSync(() => {
-            db.runSync('DELETE FROM sales WHERE product_id = ?', [id]);
-            db.runSync('DELETE FROM shipment_items WHERE product_id = ?', [id]);
-            db.runSync('DELETE FROM products WHERE id = ?', [id]);
-        });
+    async deleteProduct(id: number) {
+        // RLS or cascading deletes should handle this, but for parity:
+        await supabase.from('sales').delete().eq('product_id', id);
+        await supabase.from('shipment_items').delete().eq('product_id', id);
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) throw error;
     }
 
-    getProductShipments(productId: number): (ShipmentItem & { date: string })[] {
-        const db = getDb();
-        return db.getAllSync<ShipmentItem & { date: string }>(`
-            SELECT si.*, s.date 
-            FROM shipment_items si
-            JOIN shipments s ON si.shipment_id = s.id
-            WHERE si.product_id = ?
-            ORDER BY s.date DESC
-        `, [productId]);
+    async getProductShipments(productId: number): Promise<(ShipmentItem & { date: string })[]> {
+        const { data, error } = await supabase
+            .from('shipment_items')
+            .select(`
+                *,
+                shipments (date)
+            `)
+            .eq('product_id', productId)
+            .order('shipments(date)', { ascending: false });
+        
+        if (error) throw error;
+        
+        return (data || []).map((item: any) => ({
+            ...item,
+            date: item.shipments?.date
+        }));
     }
 
-    getProductSales(productId: number): Sale[] {
-        const db = getDb();
-        return db.getAllSync<Sale>(`
-            SELECT * FROM sales 
-            WHERE product_id = ? 
-            ORDER BY date DESC
-        `, [productId]);
+    async getProductSales(productId: number): Promise<Sale[]> {
+        const { data, error } = await supabase
+            .from('sales')
+            .select('*')
+            .eq('product_id', productId)
+            .order('date', { ascending: false });
+        
+        if (error) throw error;
+        return data || [];
     }
 }

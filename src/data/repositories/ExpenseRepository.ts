@@ -1,24 +1,34 @@
-import { getDb } from '../database';
+import { supabase } from '../supabase';
 import { Expense } from '../../domain/models';
 
 export class ExpenseRepository {
-    getExpenses(): Expense[] {
-        const db = getDb();
-        return db.getAllSync<Expense>('SELECT * FROM expenses ORDER BY date DESC');
+    async getExpenses(): Promise<Expense[]> {
+        const { data, error } = await supabase
+            .from('expenses')
+            .select('*')
+            .order('date', { ascending: false });
+        
+        if (error) throw error;
+        return data || [];
     }
 
-    addExpense(amount: number, date: string, description: string) {
-        const db = getDb();
-        db.runSync('INSERT INTO expenses (amount, date, description) VALUES (?, ?, ?)', [amount, date, description]);
+    async addExpense(amount: number, date: string, description: string) {
+        const { error } = await supabase
+            .from('expenses')
+            .insert([{ amount, date, description }]);
+        if (error) throw error;
     }
 
-    deleteExpense(id: number) {
-        const db = getDb();
-        db.runSync('DELETE FROM expenses WHERE id = ?', [id]);
+    async deleteExpense(id: number) {
+        const { error } = await supabase.from('expenses').delete().eq('id', id);
+        if (error) throw error;
     }
 
-    updateExpense(id: number, amount: number, date: string, description: string) {
-        const db = getDb();
-        db.runSync('UPDATE expenses SET amount = ?, date = ?, description = ? WHERE id = ?', [amount, date, description, id]);
+    async updateExpense(id: number, amount: number, date: string, description: string) {
+        const { error } = await supabase
+            .from('expenses')
+            .update({ amount, date, description })
+            .eq('id', id);
+        if (error) throw error;
     }
 }

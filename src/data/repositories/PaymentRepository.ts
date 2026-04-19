@@ -1,24 +1,34 @@
-import { getDb } from '../database';
+import { supabase } from '../supabase';
 import { Payment } from '../../domain/models';
 
 export class PaymentRepository {
-    getPayments(): Payment[] {
-        const db = getDb();
-        return db.getAllSync<Payment>('SELECT * FROM payments ORDER BY date DESC');
+    async getPayments(): Promise<Payment[]> {
+        const { data, error } = await supabase
+            .from('payments')
+            .select('*')
+            .order('date', { ascending: false });
+        
+        if (error) throw error;
+        return data || [];
     }
 
-    addPayment(amount: number, date: string, notes: string) {
-        const db = getDb();
-        db.runSync('INSERT INTO payments (amount, date, notes) VALUES (?, ?, ?)', [amount, date, notes]);
+    async addPayment(amount: number, date: string, notes: string) {
+        const { error } = await supabase
+            .from('payments')
+            .insert([{ amount, date, notes }]);
+        if (error) throw error;
     }
 
-    deletePayment(id: number) {
-        const db = getDb();
-        db.runSync('DELETE FROM payments WHERE id = ?', [id]);
+    async deletePayment(id: number) {
+        const { error } = await supabase.from('payments').delete().eq('id', id);
+        if (error) throw error;
     }
 
-    updatePayment(id: number, amount: number, date: string, notes: string) {
-        const db = getDb();
-        db.runSync('UPDATE payments SET amount = ?, date = ?, notes = ? WHERE id = ?', [amount, date, notes, id]);
+    async updatePayment(id: number, amount: number, date: string, notes: string) {
+        const { error } = await supabase
+            .from('payments')
+            .update({ amount, date, notes })
+            .eq('id', id);
+        if (error) throw error;
     }
 }

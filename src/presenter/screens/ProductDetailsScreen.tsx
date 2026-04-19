@@ -19,11 +19,18 @@ export function ProductDetailsScreen({ route, navigation }: any) {
     const product = products.find(p => p.id === productId);
 
     useEffect(() => {
-        if (productId) {
-            setShipments(getProductShipments(productId));
-            setSales(getProductSales(productId));
-        }
-    }, [productId, products]);
+        const loadActivity = async () => {
+            if (productId) {
+                const [shipmentsData, salesData] = await Promise.all([
+                    getProductShipments(productId),
+                    getProductSales(productId)
+                ]);
+                setShipments(shipmentsData);
+                setSales(salesData);
+            }
+        };
+        loadActivity();
+    }, [productId, products, getProductShipments, getProductSales]);
 
     if (!product) {
         return (

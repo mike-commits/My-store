@@ -26,26 +26,43 @@ export const useStore = () => {
     // Sync local state with global state
     const forceUpdate = useCallback(() => setDummy({}), []);
 
+    const refreshAll = useCallback(async () => {
+        const [
+            products,
+            shipments,
+            sales,
+            payments,
+            reports,
+            expenses
+        ] = await Promise.all([
+            productRepo.getProducts(),
+            shipmentRepo.getShipments(),
+            saleRepo.getSales(),
+            paymentRepo.getPayments(),
+            reportRepo.getReports(),
+            expenseRepo.getExpenses()
+        ]);
+
+        globalProducts = products;
+        globalShipments = shipments;
+        globalSales = sales;
+        globalPayments = payments;
+        globalReports = reports;
+        globalExpenses = expenses;
+        
+        notifyListeners();
+    }, []);
+
     useEffect(() => {
         listeners.push(forceUpdate);
         // Initial load if empty
         if (globalProducts.length === 0) {
-            refreshAll();
+            refreshAll().catch(console.error);
         }
         return () => {
             listeners = listeners.filter(l => l !== forceUpdate);
         };
-    }, [forceUpdate]);
-
-    const refreshAll = useCallback(() => {
-        globalProducts = productRepo.getProducts();
-        globalShipments = shipmentRepo.getShipments();
-        globalSales = saleRepo.getSales();
-        globalPayments = paymentRepo.getPayments();
-        globalReports = reportRepo.getReports();
-        globalExpenses = expenseRepo.getExpenses();
-        notifyListeners();
-    }, []);
+    }, [forceUpdate, refreshAll]);
 
     const getAvailableCash = () => {
         const totalPay = globalPayments.reduce((acc, p) => acc + p.amount, 0);
@@ -57,72 +74,72 @@ export const useStore = () => {
     };
 
     const addProduct = async (product: Omit<Product, 'id'>) => {
-        productRepo.addProduct(product);
-        refreshAll();
+        await productRepo.addProduct(product);
+        await refreshAll();
     };
 
     const updateProduct = async (product: Product) => {
-        productRepo.updateProduct(product);
-        refreshAll();
+        await productRepo.updateProduct(product);
+        await refreshAll();
     };
 
     const deleteProduct = async (id: number) => {
-        productRepo.deleteProduct(id);
-        refreshAll();
+        await productRepo.deleteProduct(id);
+        await refreshAll();
     };
 
     const addShipment = async (date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) => {
-        shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
-        refreshAll();
+        await shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
+        await refreshAll();
     };
 
     const addSale = async (productId: number, date: string, quantity: number, sellPrice: number) => {
         const product = globalProducts.find(p => p.id === productId);
         const buyPrice = product?.buy_price || 0;
-        saleRepo.addSale(productId, date, quantity, buyPrice, sellPrice);
-        refreshAll();
+        await saleRepo.addSale(productId, date, quantity, buyPrice, sellPrice);
+        await refreshAll();
     };
 
     const addPayment = async (amount: number, date: string, notes: string) => {
-        paymentRepo.addPayment(amount, date, notes);
-        refreshAll();
+        await paymentRepo.addPayment(amount, date, notes);
+        await refreshAll();
     };
 
     const deletePayment = async (id: number) => {
-        paymentRepo.deletePayment(id);
-        refreshAll();
+        await paymentRepo.deletePayment(id);
+        await refreshAll();
     };
 
     const updatePayment = async (id: number, amount: number, date: string, notes: string) => {
-        paymentRepo.updatePayment(id, amount, new Date(date).toISOString(), notes);
-        refreshAll();
+        await paymentRepo.updatePayment(id, amount, new Date(date).toISOString(), notes);
+        await refreshAll();
     };
 
     const addManualReport = async (title: string, content: string, dateOption?: string) => {
-        reportRepo.addReport(title, content, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString());
-        refreshAll();
+        await reportRepo.addReport(title, content, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString());
+        await refreshAll();
     };
 
     const deleteManualReport = async (id: number) => {
-        reportRepo.deleteReport(id);
-        refreshAll();
+        await reportRepo.deleteReport(id);
+        await refreshAll();
     };
 
     const updateManualReport = async (id: number, title: string, content: string, date: string) => {
-        reportRepo.updateReport(id, title, content, new Date(date).toISOString());
-        refreshAll();
+        await reportRepo.updateReport(id, title, content, new Date(date).toISOString());
+        await refreshAll();
     };
     
     const addExpense = async (amount: number, description: string, dateOption?: string) => {
         const available = getAvailableCash();
         if (amount > available) throw new Error(`Insufficient funds for expense! Required: SSP ${amount.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
-        expenseRepo.addExpense(amount, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString(), description);
-        refreshAll();
+        await expenseRepo.addExpense(amount, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString(), description);
+        await refreshAll();
     };
 
     const deleteExpense = async (id: number) => {
-        expenseRepo.deleteExpense(id);
-        refreshAll();
+        await expenseRepo.deleteExpense(id);
+        await refreshAll();
     };
 
     const updateExpense = async (id: number, amount: number, description: string, date: string) => {
@@ -130,8 +147,8 @@ export const useStore = () => {
         const oldAmt = oldExp ? oldExp.amount : 0;
         const available = getAvailableCash();
         if (amount - oldAmt > available) throw new Error(`Insufficient funds to increase expense! Required: SSP ${(amount - oldAmt).toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
-        expenseRepo.updateExpense(id, amount, new Date(date).toISOString(), description);
-        refreshAll();
+        await expenseRepo.updateExpense(id, amount, new Date(date).toISOString(), description);
+        await refreshAll();
     };
 
     // Logical Business Calculations
@@ -179,14 +196,14 @@ export const useStore = () => {
         updateProduct,
         deleteProduct,
         addShipment,
-        deleteShipment: (id: number) => {
-            shipmentRepo.deleteShipment(id);
-            refreshAll();
+        deleteShipment: async (id: number) => {
+            await shipmentRepo.deleteShipment(id);
+            await refreshAll();
         },
         addSale,
-        deleteSale: (id: number) => {
-            saleRepo.deleteSale(id);
-            refreshAll();
+        deleteSale: async (id: number) => {
+            await saleRepo.deleteSale(id);
+            await refreshAll();
         },
         addPayment,
         updatePayment,
