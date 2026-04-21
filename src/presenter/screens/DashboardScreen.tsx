@@ -116,18 +116,28 @@ export function DashboardScreen() {
                     </View>
                 </Card>
 
-                {products.length > 0 && <Text style={[styles.sectionHeader, { color: colors.text }]}>Recent Inventory</Text>}
-                {products.sort((a, b) => b.id - a.id).slice(0, 5).map(product => (
+                {products.length > 0 && <Text style={[styles.sectionHeader, { color: colors.text }]}>Product Inventory</Text>}
+                {products.sort((a, b) => b.id - a.id).map(product => {
+                    const hasStock = product.quantity > 0;
+                    return (
                     <Card 
                         key={product.id} 
-                        style={styles.recentProductCard}
+                        style={[
+                            styles.recentProductCard, 
+                            hasStock && { borderColor: colors.success + '40', borderWidth: 1 }
+                        ]}
                         onPress={() => navigation.navigate('ProductDetails', { productId: product.id })}
                     >
-                        <View style={[styles.recentProductIcon, { backgroundColor: isDark ? colors.primaryLight : '#F3E8FF' }]}>
+                        <View style={[styles.recentProductIcon, { backgroundColor: isDark ? colors.primaryLight : '#F3E8FF', opacity: hasStock ? 1 : 0.5 }]}>
                             <Text style={[styles.recentProductIconText, { color: colors.primary }]}>{product.name[0]}</Text>
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={{ flex: 1, opacity: hasStock ? 1 : 0.6 }}>
                             <Text style={[styles.recentProductName, { color: colors.text }]}>{product.name}</Text>
+                            {hasStock && (
+                                <View style={[styles.stockBadge, { backgroundColor: colors.success + '20' }]}>
+                                    <Text style={[styles.stockBadgeText, { color: colors.success }]}>IN STOCK</Text>
+                                </View>
+                            )}
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                             <Text style={[styles.recentProductPrice, { color: colors.primary }]}>SSP {product.sell_price.toFixed(0)}</Text>
@@ -136,7 +146,7 @@ export function DashboardScreen() {
                             </Text>
                         </View>
                     </Card>
-                ))}
+                );})}
 
                 <View style={{ height: 120 }} />
             </ScrollView>
@@ -202,4 +212,6 @@ const styles = StyleSheet.create({
     recentProductName: { fontSize: 14, fontWeight: '700' },
     recentProductPrice: { fontSize: 13, fontWeight: '900' },
     recentProductQty: { fontSize: 10, marginTop: 2, fontWeight: '700' },
+    stockBadge: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
+    stockBadgeText: { fontSize: 8, fontWeight: '900' }
 });
