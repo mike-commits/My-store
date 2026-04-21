@@ -200,15 +200,16 @@ export const useStore = () => {
         const totalExpenses = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
         const totalCommissions = globalPayments.reduce((acc, p) => acc + (p.commission_fee || 0), 0);
         
-        // Sales Revenue now reflects the "Net Sales" after deducting commissions and expenses
-        const totalSalesRevenue = grossSalesRevenue - totalCommissions - totalExpenses;
+        const totalShippingFees = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
+
+        // Sales Revenue now reflects the "Net Sales" after deducting commissions, expenses, and shipping
+        const totalSalesRevenue = grossSalesRevenue - totalCommissions - totalExpenses - totalShippingFees;
         const netProfit = totalSalesRevenue - totalCostOfGoodsSold;
         
         const totalInventoryValue = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
         const potentialRevenue = globalProducts.reduce((acc, p) => acc + (p.sell_price * p.quantity), 0);
         const potentialProfit = potentialRevenue - totalInventoryValue;
 
-        const totalShippingFees = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
         const totalPayments = globalPayments.reduce((acc, p) => acc + p.amount, 0);
         const availableCash = getAvailableCash();
 
