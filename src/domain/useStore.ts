@@ -94,7 +94,7 @@ export const useStore = () => {
     }, [forceUpdate, refreshAll]);
 
     const getAvailableCash = () => {
-        const totalPay = globalPayments.reduce((acc, p) => acc + p.amount, 0);
+        const totalPay = globalPayments.reduce((acc, p) => acc + (p.amount - (p.commission_fee || 0)), 0);
         const totalExp = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
         const totalShip = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
         const totalInv = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
@@ -139,8 +139,8 @@ export const useStore = () => {
         await Promise.all([refreshSales(), refreshProducts()]); // Sales affect inventory
     };
 
-    const addPayment = async (amount: number, date: string, notes: string) => {
-        await paymentRepo.addPayment(amount, date, notes);
+    const addPayment = async (amount: number, date: string, notes: string, commission_fee: number = 0) => {
+        await paymentRepo.addPayment(amount, date, notes, commission_fee);
         await refreshFinance();
     };
 
@@ -149,8 +149,8 @@ export const useStore = () => {
         await refreshFinance();
     };
 
-    const updatePayment = async (id: number, amount: number, date: string, notes: string) => {
-        await paymentRepo.updatePayment(id, amount, new Date(date).toISOString(), notes);
+    const updatePayment = async (id: number, amount: number, date: string, notes: string, commission_fee: number = 0) => {
+        await paymentRepo.updatePayment(id, amount, new Date(date).toISOString(), notes, commission_fee);
         await refreshFinance();
     };
 
@@ -198,7 +198,8 @@ export const useStore = () => {
         const totalSalesRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
         const totalCostOfGoodsSold = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
         const totalExpenses = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
-        const netProfit = totalSalesRevenue - totalCostOfGoodsSold - totalExpenses;
+        const totalCommissions = globalPayments.reduce((acc, p) => acc + (p.commission_fee || 0), 0);
+        const netProfit = totalSalesRevenue - totalCostOfGoodsSold - totalExpenses - totalCommissions;
         
         const totalInventoryValue = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
         const potentialRevenue = globalProducts.reduce((acc, p) => acc + (p.sell_price * p.quantity), 0);
@@ -218,6 +219,7 @@ export const useStore = () => {
             totalShippingFees,
             totalPayments,
             totalExpenses,
+            totalCommissions,
             availableCash,
             profitMargin: totalSalesRevenue > 0 ? (netProfit / totalSalesRevenue) * 100 : 0
         };

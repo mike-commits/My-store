@@ -29,6 +29,7 @@ export function ReportsScreen() {
     const [editPaymentModalVisible, setEditPaymentModalVisible] = useState(false);
     const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
     const [editPayAmount, setEditPayAmount] = useState('');
+    const [editPayCommission, setEditPayCommission] = useState('');
     const [editPayDate, setEditPayDate] = useState('');
     const [editPayNotes, setEditPayNotes] = useState('');
 
@@ -40,6 +41,7 @@ export function ReportsScreen() {
     const [editExpDesc, setEditExpDesc] = useState('');
     
     const [amount, setAmount] = useState('');
+    const [commissionFee, setCommissionFee] = useState('');
     const [notes, setNotes] = useState('');
     const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
 
@@ -62,9 +64,10 @@ export function ReportsScreen() {
     const handleSavePayment = async () => {
         if (!amount) return;
         try {
-            await addPayment(parseFloat(amount), new Date(paymentDate).toISOString(), notes);
+            await addPayment(parseFloat(amount), new Date(paymentDate).toISOString(), notes, parseFloat(commissionFee || '0'));
             setPaymentModalVisible(false);
             setAmount('');
+            setCommissionFee('');
             setNotes('');
             setPaymentDate(new Date().toISOString().split('T')[0]);
         } catch (e) { Alert.alert('Error', 'Failed to save record'); }
@@ -112,6 +115,7 @@ export function ReportsScreen() {
     const openEditPayment = (p: Payment) => {
         setEditingPayment(p);
         setEditPayAmount(String(p.amount));
+        setEditPayCommission(String(p.commission_fee || 0));
         setEditPayDate(new Date(p.date).toISOString().split('T')[0]);
         setEditPayNotes(p.notes || '');
         setEditPaymentModalVisible(true);
@@ -120,7 +124,7 @@ export function ReportsScreen() {
     const handleUpdatePayment = async () => {
         if (!editingPayment || !editPayAmount) return;
         try {
-            await updatePayment(editingPayment.id, parseFloat(editPayAmount), editPayDate, editPayNotes);
+            await updatePayment(editingPayment.id, parseFloat(editPayAmount), editPayDate, editPayNotes, parseFloat(editPayCommission || '0'));
             setEditPaymentModalVisible(false);
             setEditingPayment(null);
         } catch (e) { Alert.alert('Error', 'Failed to update record'); }
@@ -165,6 +169,12 @@ export function ReportsScreen() {
                         <View style={styles.stat}>
                             <Text style={styles.statLabel}>Total Cash In</Text>
                             <Text style={styles.statValue}>SSP {totalPaymentsReceived.toLocaleString()}</Text>
+                        </View>
+                        <View style={styles.stat}>
+                            <Text style={styles.statLabel}>Commissions</Text>
+                            <Text style={[styles.statValue, { color: '#FDA4AF' }]}>
+                                SSP {stats.totalCommissions.toLocaleString()}
+                            </Text>
                         </View>
                         <View style={styles.stat}>
                             <Text style={styles.statLabel}>Balance Due</Text>
@@ -233,6 +243,16 @@ export function ReportsScreen() {
                         <View style={styles.listCardTop}>
                             <View style={styles.paymentInfo}>
                                 <Text style={styles.paymentValue}>+ SSP {p.amount.toLocaleString()}</Text>
+                                {p.commission_fee ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                                        <Text style={[styles.paymentNotes, { color: colors.error, fontSize: 10, fontWeight: '900' }]}>
+                                            Commission: -SSP {p.commission_fee.toLocaleString()}
+                                        </Text>
+                                        <Text style={[styles.paymentNotes, { color: colors.textSecondary, fontSize: 10, marginLeft: 4 }]}>
+                                            (Net: SSP {(p.amount - p.commission_fee).toLocaleString()})
+                                        </Text>
+                                    </View>
+                                ) : null}
                                 <Text style={[styles.paymentNotes, { color: colors.textSecondary }]}>{p.notes}</Text>
                                 <Text style={[styles.paymentDate, { color: colors.textMuted }]}>{new Date(p.date).toLocaleDateString()}</Text>
                             </View>
@@ -310,6 +330,10 @@ export function ReportsScreen() {
                     </View>
                     <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT RECEIVED (SSP)</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={amount} onChangeText={setAmount} keyboardType="numeric" />
+                    
+                    <Text style={[styles.label, { color: colors.textMuted }]}>COMMISSION FEE (SSP)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={commissionFee} onChangeText={setCommissionFee} keyboardType="numeric" />
+
                     <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={paymentDate} onChangeText={setPaymentDate} />
                     <Text style={[styles.label, { color: colors.textMuted }]}>NOTES</Text>
@@ -378,6 +402,10 @@ export function ReportsScreen() {
                     </View>
                     <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT (SSP)</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={editPayAmount} onChangeText={setEditPayAmount} keyboardType="numeric" />
+                    
+                    <Text style={[styles.label, { color: colors.textMuted }]}>COMMISSION FEE (SSP)</Text>
+                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={editPayCommission} onChangeText={setEditPayCommission} keyboardType="numeric" />
+
                     <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editPayDate} onChangeText={setEditPayDate} />
                     <Text style={[styles.label, { color: colors.textMuted }]}>NOTES</Text>

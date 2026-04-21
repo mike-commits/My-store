@@ -42,6 +42,7 @@ export interface Sale {
 export interface Payment {
     id: number;
     amount: number;
+    commission_fee?: number;
     date: string;
     notes: string;
 }
