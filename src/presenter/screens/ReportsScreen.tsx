@@ -54,8 +54,9 @@ export function ReportsScreen() {
     const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0]);
 
 
-    const totalPaymentsReceived = payments.reduce((sum, p) => sum + p.amount, 0);
-    const outstandingBalance = stats.totalSalesRevenue - totalPaymentsReceived;
+    const totalGrossPayments = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalNetPaymentsReceived = payments.reduce((sum, p) => sum + (p.amount - (p.commission_fee || 0)), 0);
+    const outstandingBalance = stats.totalSalesRevenue - totalNetPaymentsReceived;
 
     const generatePDF = () => {
         generatePerformancePDF({ stats, manualReports, payments, sales: [], shipments: [], expenses });
@@ -70,7 +71,10 @@ export function ReportsScreen() {
             setCommissionFee('');
             setNotes('');
             setPaymentDate(new Date().toISOString().split('T')[0]);
-        } catch (e) { Alert.alert('Error', 'Failed to save record'); }
+        } catch (e: any) { 
+            console.error('[Reports] Save payment failed:', e);
+            Alert.alert('Error', e.message || 'Failed to save record'); 
+        }
     };
 
     const handleSaveReport = async () => {
@@ -127,7 +131,10 @@ export function ReportsScreen() {
             await updatePayment(editingPayment.id, parseFloat(editPayAmount), editPayDate, editPayNotes, parseFloat(editPayCommission || '0'));
             setEditPaymentModalVisible(false);
             setEditingPayment(null);
-        } catch (e) { Alert.alert('Error', 'Failed to update record'); }
+        } catch (e: any) { 
+            console.error('[Reports] Update payment failed:', e);
+            Alert.alert('Error', e.message || 'Failed to update record'); 
+        }
     };
 
     const openEditExpense = (e: Expense) => {
@@ -167,8 +174,8 @@ export function ReportsScreen() {
                     <View style={styles.divider} />
                     <View style={styles.statsRow}>
                         <View style={styles.stat}>
-                            <Text style={styles.statLabel}>Total Cash In</Text>
-                            <Text style={styles.statValue}>SSP {totalPaymentsReceived.toLocaleString()}</Text>
+                            <Text style={styles.statLabel}>Net Cash In</Text>
+                            <Text style={styles.statValue}>SSP {totalNetPaymentsReceived.toLocaleString()}</Text>
                         </View>
                         <View style={styles.stat}>
                             <Text style={styles.statLabel}>Commissions</Text>

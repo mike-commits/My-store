@@ -195,11 +195,14 @@ export const useStore = () => {
 
     // Logical Business Calculations
     const stats = useMemo(() => {
-        const totalSalesRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
+        const grossSalesRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
         const totalCostOfGoodsSold = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
         const totalExpenses = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
         const totalCommissions = globalPayments.reduce((acc, p) => acc + (p.commission_fee || 0), 0);
-        const netProfit = totalSalesRevenue - totalCostOfGoodsSold - totalExpenses - totalCommissions;
+        
+        // Sales Revenue now reflects the "Net Sales" after deducting commissions and expenses
+        const totalSalesRevenue = grossSalesRevenue - totalCommissions - totalExpenses;
+        const netProfit = totalSalesRevenue - totalCostOfGoodsSold;
         
         const totalInventoryValue = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
         const potentialRevenue = globalProducts.reduce((acc, p) => acc + (p.sell_price * p.quantity), 0);
@@ -210,7 +213,8 @@ export const useStore = () => {
         const availableCash = getAvailableCash();
 
         return {
-            totalSalesRevenue,
+            grossSalesRevenue,
+            totalSalesRevenue, // This is now Net of expenses/commissions
             totalCostOfGoodsSold,
             netProfit,
             totalInventoryValue,
@@ -221,7 +225,7 @@ export const useStore = () => {
             totalExpenses,
             totalCommissions,
             availableCash,
-            profitMargin: totalSalesRevenue > 0 ? (netProfit / totalSalesRevenue) * 100 : 0
+            profitMargin: grossSalesRevenue > 0 ? (netProfit / grossSalesRevenue) * 100 : 0
         };
     }, [globalSales, globalProducts, globalShipments, globalPayments, globalExpenses]);
 
