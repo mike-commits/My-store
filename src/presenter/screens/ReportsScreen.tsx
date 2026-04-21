@@ -379,6 +379,7 @@ export function ReportsScreen() {
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={expenseDate} onChangeText={setExpenseDate} />
                     <Text style={[styles.label, { color: colors.textMuted }]}>DESCRIPTION</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="What was this for? (e.g. Lunch, Transports)" placeholderTextColor={colors.textMuted} value={expenseDescription} onChangeText={setExpenseDescription} />
+                    <Text style={[styles.inputHint, { color: colors.textMuted }]}>⚠️ Note: Record shipping costs in the Shipments section to avoid double-counting.</Text>
                     <AppButton title="Save Expense" onPress={handleSaveExpense} style={{ marginTop: 20 }} />
                 </FormLayout>
             </Modal>
@@ -434,6 +435,7 @@ export function ReportsScreen() {
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editExpDate} onChangeText={setEditExpDate} />
                     <Text style={[styles.label, { color: colors.textMuted }]}>DESCRIPTION</Text>
                     <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="What was this for?" placeholderTextColor={colors.textMuted} value={editExpDesc} onChangeText={setEditExpDesc} />
+                    <Text style={[styles.inputHint, { color: colors.textMuted }]}>⚠️ Note: Record shipping costs in the Shipments section.</Text>
                     <AppButton title="Save Changes" onPress={handleUpdateExpense} style={{ marginTop: 20 }} />
                 </FormLayout>
             </Modal>
@@ -489,5 +491,6 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 22, fontWeight: '900' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
     label: { fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
-    input: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16, marginBottom: 20 }
+    input: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16, marginBottom: 20 },
+    inputHint: { fontSize: 10, fontStyle: 'italic', marginTop: -15, marginBottom: 15, fontWeight: '600' }
 });
