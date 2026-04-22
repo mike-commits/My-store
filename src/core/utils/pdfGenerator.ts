@@ -53,8 +53,8 @@ export const generatePerformancePDF = async (data: PDFReportData) => {
                         <div class="summary-value profit-pos">SSP ${stats.netProfit.toLocaleString()}</div>
                     </div>
                     <div class="summary-box">
-                        <div class="summary-label">Total Revenue</div>
-                        <div class="summary-value">SSP ${stats.totalSalesRevenue.toLocaleString()}</div>
+                        <div class="summary-label">Net Sales Revenue</div>
+                        <div class="summary-value">SSP ${stats.netSalesRevenue.toLocaleString()}</div>
                     </div>
                     <div class="summary-box">
                         <div class="summary-label">Personal Expenses</div>
@@ -160,7 +160,7 @@ export const generatePerformancePDF = async (data: PDFReportData) => {
                 </section>
 
                 <footer>
-                    Store Performance Audit. All manual journals and money records included.
+                    Store Performance Audit. All manual journals, money records, and shipping costs included.
                 </footer>
             </body>
             </html>
