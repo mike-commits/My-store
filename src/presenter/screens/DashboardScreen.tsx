@@ -88,7 +88,7 @@ export function DashboardScreen() {
                 <View style={styles.gridRow}>
                     <Card style={styles.gridCard}>
                         <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Sales Revenue</Text>
-                        <Text style={[styles.gridValue, { color: colors.text }]}>SSP {stats.totalSalesRevenue.toLocaleString()}</Text>
+                        <Text style={[styles.gridValue, { color: colors.text }]}>SSP {stats.grossSalesRevenue.toLocaleString()}</Text>
                         <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{sales.length} orders total</Text>
                     </Card>
                     <Card style={styles.gridCard}>

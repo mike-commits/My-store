@@ -204,8 +204,8 @@ export const useStore = () => {
 
         const totalPayments = globalPayments.reduce((acc, p) => acc + p.amount, 0);
         
-        // Sales Revenue now reflects the "Outstanding Balance" of Sales vs Payments only
-        const totalSalesRevenue = grossSalesRevenue - totalPayments;
+        // Outstanding Balance reflects the money yet to be collected (Sales vs Payments)
+        const outstandingBalance = grossSalesRevenue - totalPayments;
         
         // Net Profit accounts for all costs: COGS, Commissions, Expenses, and Shipping
         const netProfit = (grossSalesRevenue - totalCostOfGoodsSold) - (totalCommissions + totalExpenses + totalShippingFees);
@@ -218,7 +218,7 @@ export const useStore = () => {
 
         return {
             grossSalesRevenue,
-            totalSalesRevenue, // This is now Net of expenses/commissions
+            outstandingBalance,
             totalCostOfGoodsSold,
             netProfit,
             totalInventoryValue,

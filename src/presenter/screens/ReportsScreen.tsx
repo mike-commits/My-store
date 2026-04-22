@@ -56,7 +56,7 @@ export function ReportsScreen() {
 
     const totalGrossPayments = payments.reduce((sum, p) => sum + p.amount, 0);
     const totalNetPaymentsReceived = payments.reduce((sum, p) => sum + (p.amount - (p.commission_fee || 0)), 0);
-    const outstandingBalance = stats.totalSalesRevenue - totalNetPaymentsReceived;
+    const outstandingBalance = stats.outstandingBalance;
 
     const generatePDF = () => {
         generatePerformancePDF({ stats, manualReports, payments, sales: [], shipments: [], expenses });
