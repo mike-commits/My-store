@@ -71,23 +71,18 @@ export function DashboardScreen() {
 
                 <View style={styles.gridRow}>
                     <Card style={styles.gridCard}>
-                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Total Revenue</Text>
-                        <Text style={[styles.gridValue, { color: colors.text }]}>SSP {stats.totalRevenue.toLocaleString()}</Text>
-                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{sales.length} sales recorded</Text>
-                    </Card>
-                    <Card style={styles.gridCard}>
                         <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Gross Profit</Text>
                         <Text style={[styles.gridValue, { color: colors.success }]}>SSP {stats.grossProfit.toLocaleString()}</Text>
                         <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{stats.grossMargin.toFixed(0)}% avg margin</Text>
                     </Card>
-                </View>
-
-                <View style={styles.gridRow}>
                     <Card style={styles.gridCard}>
                         <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Operating Costs</Text>
                         <Text style={[styles.gridValue, { color: colors.error }]}>SSP {stats.totalOpex.toLocaleString()}</Text>
                         <Text style={[styles.gridCaption, { color: colors.textMuted }]}>Fees, Ship, Exp</Text>
                     </Card>
+                </View>
+
+                <View style={styles.gridRow}>
                     <Card style={styles.gridCard}>
                         <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Balance Due</Text>
                         <Text style={[styles.gridValue, { color: stats.outstandingBalance > 0 ? colors.warning : colors.text }]}>SSP {stats.outstandingBalance.toLocaleString()}</Text>
