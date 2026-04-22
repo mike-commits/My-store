@@ -43,14 +43,40 @@ export function DashboardScreen() {
                 contentContainerStyle={styles.scrollContent} 
                 showsVerticalScrollIndicator={false}
             >
-                {/* Main Financial Card */}
+                {/* Main Financial Card - Net Profit */}
                 <Card style={styles.heroCard}>
-                    <Text style={styles.heroLabel}>TOTAL NET PROFIT</Text>
+                    <Text style={styles.heroLabel}>OVERALL NET PROFIT</Text>
                     <Text style={styles.heroValue}>SSP {stats.netProfit.toLocaleString()}</Text>
                     <View style={styles.heroBadge}>
-                        <Text style={styles.heroBadgeText}>{stats.profitMargin.toFixed(1)}% MARGIN</Text>
+                        <Text style={styles.heroBadgeText}>{stats.netMargin.toFixed(1)}% NET MARGIN</Text>
                     </View>
                 </Card>
+
+                <View style={styles.gridRow}>
+                    <Card style={styles.gridCard}>
+                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Total Revenue</Text>
+                        <Text style={[styles.gridValue, { color: colors.text }]}>SSP {stats.totalRevenue.toLocaleString()}</Text>
+                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{sales.length} sales recorded</Text>
+                    </Card>
+                    <Card style={styles.gridCard}>
+                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Gross Profit</Text>
+                        <Text style={[styles.gridValue, { color: colors.success }]}>SSP {stats.grossProfit.toLocaleString()}</Text>
+                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{stats.grossMargin.toFixed(0)}% avg margin</Text>
+                    </Card>
+                </View>
+
+                <View style={styles.gridRow}>
+                    <Card style={styles.gridCard}>
+                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Operating Costs</Text>
+                        <Text style={[styles.gridValue, { color: colors.error }]}>SSP {stats.totalOpex.toLocaleString()}</Text>
+                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>Fees, Ship, Exp</Text>
+                    </Card>
+                    <Card style={styles.gridCard}>
+                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Balance Due</Text>
+                        <Text style={[styles.gridValue, { color: stats.outstandingBalance > 0 ? colors.warning : colors.text }]}>SSP {stats.outstandingBalance.toLocaleString()}</Text>
+                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>Uncollected funds</Text>
+                    </Card>
+                </View>
 
                 <Text style={[styles.sectionHeader, { color: colors.text }]}>Quick Actions</Text>
                 <View style={styles.actionRow}>
@@ -85,34 +111,21 @@ export function DashboardScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <View style={styles.gridRow}>
-                    <Card style={styles.gridCard}>
-                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Net Sales Revenue</Text>
-                        <Text style={[styles.gridValue, { color: colors.text }]}>SSP {stats.netSalesRevenue.toLocaleString()}</Text>
-                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{sales.length} orders total</Text>
-                    </Card>
-                    <Card style={styles.gridCard}>
-                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Inventory Value</Text>
-                        <Text style={[styles.gridValue, { color: colors.secondary }]}>SSP {stats.totalInventoryValue.toLocaleString()}</Text>
-                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{totalItems} items listed</Text>
-                    </Card>
-                </View>
-
                 <Text style={[styles.sectionHeader, { color: colors.text }]}>Inventory Performance</Text>
                 <Card style={styles.statsCard}>
                     <View style={styles.statLine}>
                         <View style={styles.statInfo}>
-                            <Text style={[styles.statLabelMain, { color: colors.text }]}>Stock Level</Text>
-                            <Text style={[styles.statSubText, { color: colors.textMuted }]}>Total units in warehouse</Text>
+                            <Text style={[styles.statLabelMain, { color: colors.text }]}>Inventory Asset Value</Text>
+                            <Text style={[styles.statSubText, { color: colors.textMuted }]}>Total stock value at cost</Text>
                         </View>
-                        <Text style={[styles.statBigValue, { color: colors.text }]}>{totalStockCount}</Text>
+                        <Text style={[styles.statBigValue, { color: colors.primary }]}>SSP {stats.inventoryValueAtCost.toLocaleString()}</Text>
                     </View>
                     <View style={styles.statLine}>
                         <View style={styles.statInfo}>
-                            <Text style={[styles.statLabelMain, { color: colors.text }]}>Low Stock Alerts</Text>
-                            <Text style={[styles.statSubText, { color: colors.textMuted }]}>{lowStockItems.length} items below threshold</Text>
+                            <Text style={[styles.statLabelMain, { color: colors.text }]}>Available Cash Flow</Text>
+                            <Text style={[styles.statSubText, { color: colors.textMuted }]}>Actual liquid cash (estimated)</Text>
                         </View>
-                        <Text style={[styles.statBigValue, { color: lowStockItems.length > 0 ? colors.error : colors.text }]}>{lowStockItems.length}</Text>
+                        <Text style={[styles.statBigValue, { color: stats.availableCash >= 0 ? colors.success : colors.error }]}>SSP {stats.availableCash.toLocaleString()}</Text>
                     </View>
                 </Card>
 

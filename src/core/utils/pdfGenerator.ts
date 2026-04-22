@@ -49,20 +49,28 @@ export const generatePerformancePDF = async (data: PDFReportData) => {
 
                 <div class="summary-grid">
                     <div class="summary-box">
-                        <div class="summary-label">Net Profit</div>
+                        <div class="summary-label">Net Profit (Bottom Line)</div>
                         <div class="summary-value profit-pos">SSP ${stats.netProfit.toLocaleString()}</div>
                     </div>
                     <div class="summary-box">
-                        <div class="summary-label">Net Sales Revenue</div>
-                        <div class="summary-value">SSP ${stats.netSalesRevenue.toLocaleString()}</div>
+                        <div class="summary-label">Gross Revenue</div>
+                        <div class="summary-value">SSP ${stats.totalRevenue.toLocaleString()}</div>
                     </div>
                     <div class="summary-box">
-                        <div class="summary-label">Personal Expenses</div>
-                        <div class="summary-value" style="color: #EF4444">SSP ${stats.totalExpenses.toLocaleString()}</div>
+                        <div class="summary-label">Gross Profit</div>
+                        <div class="summary-value" style="color: #10B981">SSP ${stats.grossProfit.toLocaleString()}</div>
                     </div>
                     <div class="summary-box">
-                        <div class="summary-label">Inventory Assets</div>
-                        <div class="summary-value">SSP ${stats.totalInventoryValue.toLocaleString()}</div>
+                        <div class="summary-label">Operating Expenses (OPEX)</div>
+                        <div class="summary-value" style="color: #EF4444">SSP ${stats.totalOpex.toLocaleString()}</div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="summary-label">Outstanding Balance</div>
+                        <div class="summary-value" style="color: ${stats.outstandingBalance > 0 ? '#F59E0B' : '#111827'}">SSP ${stats.outstandingBalance.toLocaleString()}</div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="summary-label">Inventory Asset Value</div>
+                        <div class="summary-value">SSP ${stats.inventoryValueAtCost.toLocaleString()}</div>
                     </div>
                 </div>
 

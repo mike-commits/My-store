@@ -195,44 +195,55 @@ export const useStore = () => {
 
     // Logical Business Calculations
     const stats = useMemo(() => {
-        const grossSalesRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
-        const totalCostOfGoodsSold = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
-        const totalExpenses = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
+        // 1. Revenue (Total Sales Value)
+        const totalRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
+        
+        // 2. Cost of Goods Sold (What it cost to buy the items that were sold)
+        const totalCogs = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
+        
+        // 3. Gross Profit (Profit before operating expenses)
+        const grossProfit = totalRevenue - totalCogs;
+        
+        // 4. Operating Expenses (OPEX)
         const totalCommissions = globalPayments.reduce((acc, p) => acc + (p.commission_fee || 0), 0);
         const totalShippingFees = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
+        const totalOperatingExpenses = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
+        const totalOpex = totalCommissions + totalShippingFees + totalOperatingExpenses;
+        
+        // 5. Net Profit (Actual profit after all costs)
+        const netProfit = grossProfit - totalOpex;
+        
+        // 6. Cash Flow & Collections
+        const totalPaymentsReceived = globalPayments.reduce((acc, p) => acc + p.amount, 0);
+        const outstandingBalance = totalRevenue - totalPaymentsReceived;
+        
+        // Net Cash Flow (Actual cash in pocket: Net Cash In - Expenses - Shipping)
+        // Note: Inventory purchase costs are typically tracked via Expenses or inferred from COGS
+        const netCashReceived = totalPaymentsReceived - totalCommissions; 
+        const availableCash = netCashReceived - totalOperatingExpenses - totalShippingFees;
 
-        // Net Sales Revenue: Gross Sales minus Commissions, Shipping Costs, and Expenses (money records)
-        const netSalesRevenue = grossSalesRevenue - totalCommissions - totalShippingFees - totalExpenses;
-        
-        const totalPayments = globalPayments.reduce((acc, p) => acc + p.amount, 0);
-        
-        // Outstanding Balance reflects the money yet to be collected (Sales vs Payments)
-        const outstandingBalance = grossSalesRevenue - totalPayments;
-        
-        // Net Profit accounts for all costs: Net Sales Revenue minus COGS
-        const netProfit = netSalesRevenue - totalCostOfGoodsSold;
-        
-        const totalInventoryValue = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
-        const potentialRevenue = globalProducts.reduce((acc, p) => acc + (p.sell_price * p.quantity), 0);
-        const potentialProfit = potentialRevenue - totalInventoryValue;
-
-        const availableCash = getAvailableCash();
+        // 7. Assets
+        const inventoryValueAtCost = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
+        const inventoryValueAtRetail = globalProducts.reduce((acc, p) => acc + (p.sell_price * p.quantity), 0);
+        const potentialProfit = inventoryValueAtRetail - inventoryValueAtCost;
 
         return {
-            grossSalesRevenue,
-            netSalesRevenue,
-            outstandingBalance,
-            totalCostOfGoodsSold,
-            netProfit,
-            totalInventoryValue,
-            potentialRevenue,
-            potentialProfit,
-            totalShippingFees,
-            totalPayments,
-            totalExpenses,
+            totalRevenue,
+            totalCogs,
+            grossProfit,
+            totalOpex,
             totalCommissions,
+            totalShippingFees,
+            totalOperatingExpenses,
+            netProfit,
+            totalPaymentsReceived,
+            outstandingBalance,
             availableCash,
-            profitMargin: grossSalesRevenue > 0 ? (netProfit / grossSalesRevenue) * 100 : 0
+            inventoryValueAtCost,
+            inventoryValueAtRetail,
+            potentialProfit,
+            grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
+            netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
         };
     }, [globalSales, globalProducts, globalShipments, globalPayments, globalExpenses]);
 
