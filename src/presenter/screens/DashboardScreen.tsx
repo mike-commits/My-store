@@ -43,12 +43,29 @@ export function DashboardScreen() {
                 contentContainerStyle={styles.scrollContent} 
                 showsVerticalScrollIndicator={false}
             >
-                {/* Main Financial Card - Net Profit */}
+                {/* Main Financial Card - Totals */}
                 <Card style={styles.heroCard}>
-                    <Text style={styles.heroLabel}>OVERALL NET PROFIT</Text>
-                    <Text style={styles.heroValue}>SSP {stats.netProfit.toLocaleString()}</Text>
-                    <View style={styles.heroBadge}>
-                        <Text style={styles.heroBadgeText}>{stats.netMargin.toFixed(1)}% NET MARGIN</Text>
+                    <View style={styles.heroHeader}>
+                        <Text style={styles.heroLabel}>LIFETIME PERFORMANCE</Text>
+                    </View>
+                    <View style={styles.heroRow}>
+                        <View style={styles.heroStat}>
+                            <Text style={styles.heroSubLabel}>TOTAL REVENUE</Text>
+                            <Text style={styles.heroValue}>SSP {stats.totalRevenue.toLocaleString()}</Text>
+                        </View>
+                        <View style={styles.heroDivider} />
+                        <View style={styles.heroStat}>
+                            <Text style={styles.heroSubLabel}>TOTAL PROFIT</Text>
+                            <Text style={styles.heroValue}>SSP {stats.netProfit.toLocaleString()}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.heroBadgeRow}>
+                        <View style={styles.heroBadge}>
+                            <Text style={styles.heroBadgeText}>{stats.netMargin.toFixed(1)}% NET MARGIN</Text>
+                        </View>
+                        <View style={[styles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                            <Text style={styles.heroBadgeText}>{sales.length} SALES RECORDED</Text>
+                        </View>
                     </View>
                 </Card>
 
@@ -193,9 +210,15 @@ const styles = StyleSheet.create({
 
     scrollContent: { padding: 24 },
     heroCard: { backgroundColor: '#7C3AED', padding: 24, borderRadius: 24, marginBottom: 32 },
-    heroLabel: { fontSize: 9, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 1.5, marginBottom: 8 },
-    heroValue: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1 },
-    heroBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, marginTop: 16 },
+    heroHeader: { marginBottom: 16 },
+    heroLabel: { fontSize: 9, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 1.5 },
+    heroRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    heroStat: { flex: 1 },
+    heroSubLabel: { fontSize: 8, fontWeight: '800', color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
+    heroValue: { fontSize: 22, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
+    heroDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 16 },
+    heroBadgeRow: { flexDirection: 'row', gap: 8, marginTop: 20 },
+    heroBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
     heroBadgeText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
 
     sectionHeader: { fontSize: 13, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 16 },
