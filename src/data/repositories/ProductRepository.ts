@@ -32,29 +32,35 @@ export class ProductRepository {
     }
 
     async addProduct(product: Omit<Product, 'id'>) {
+        const { name, category, buy_price, sell_price, quantity, date, notes } = product;
         const { data, error } = await supabase
             .from('products')
-            .insert([product])
+            .insert([{ name, category, buy_price, sell_price, quantity, date, notes }])
             .select()
             .single();
         
-        if (error) throw error;
+        if (error || !data) throw error || new Error('Failed to create product');
         return data.id;
     }
 
     async updateProduct(product: Product) {
+        const { id, name, category, buy_price, sell_price, quantity, date, notes } = product;
         const { error } = await supabase
             .from('products')
-            .update(product)
-            .eq('id', product.id);
+            .update({ name, category, buy_price, sell_price, quantity, date, notes })
+            .eq('id', id);
         
         if (error) throw error;
     }
 
     async deleteProduct(id: number) {
-        // RLS or cascading deletes should handle this, but for parity:
-        await supabase.from('sales').delete().eq('product_id', id);
-        await supabase.from('shipment_items').delete().eq('product_id', id);
+        // First delete dependent items to satisfy foreign key constraints
+        const { error: sError } = await supabase.from('sales').delete().eq('product_id', id);
+        if (sError) console.error('Error deleting product sales:', sError);
+        
+        const { error: iError } = await supabase.from('shipment_items').delete().eq('product_id', id);
+        if (iError) console.error('Error deleting product shipment items:', iError);
+        
         const { error } = await supabase.from('products').delete().eq('id', id);
         if (error) throw error;
     }

@@ -43,29 +43,53 @@ export class ShipmentRepository {
     }
 
     async addShipment(date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) {
-        // In a real production app, this should be a stored procedure (RPC) for atomicity
         const { data: shipment, error: sError } = await supabase
             .from('shipments')
-            .insert([{ date, status, shipping_cost: shippingCost, description: description || null, weight_kg: weightKg || null }])
+            .insert([{ 
+                date, 
+                status, 
+                shipping_cost: shippingCost, 
+                description: description || null, 
+                weight_kg: weightKg || null 
+            }])
             .select()
             .single();
         
-        if (sError) throw sError;
+        if (sError || !shipment) {
+            console.error('[ShipmentRepo] Create shipment failed:', sError);
+            throw sError || new Error('Failed to create shipment record');
+        }
 
-        const shipmentItems = items.map(item => ({
-            shipment_id: shipment.id,
-            product_id: item.product_id,
-            quantity: item.quantity
-        }));
+        if (items.length > 0) {
+            const shipmentItems = items.map(item => ({
+                shipment_id: shipment.id,
+                product_id: item.product_id,
+                quantity: item.quantity
+            }));
 
-        const { error: iError } = await supabase.from('shipment_items').insert(shipmentItems);
-        if (iError) throw iError;
+            const { error: iError } = await supabase.from('shipment_items').insert(shipmentItems);
+            if (iError) throw iError;
 
-        // Update product quantities
-        for (const item of items) {
-            const { data: product } = await supabase.from('products').select('quantity').eq('id', item.product_id).single();
-            if (product) {
-                await supabase.from('products').update({ quantity: product.quantity + item.quantity }).eq('id', item.product_id);
+            // Update product quantities
+            for (const item of items) {
+                const { data: product, error: pError } = await supabase
+                    .from('products')
+                    .select('quantity')
+                    .eq('id', item.product_id)
+                    .single();
+                
+                if (pError) {
+                    console.error(`[ShipmentRepo] Could not find product ${item.product_id}:`, pError);
+                    continue;
+                }
+
+                if (product) {
+                    const { error: uError } = await supabase
+                        .from('products')
+                        .update({ quantity: product.quantity + item.quantity })
+                        .eq('id', item.product_id);
+                    if (uError) console.error(`[ShipmentRepo] Failed to update quantity for product ${item.product_id}:`, uError);
+                }
             }
         }
     }
