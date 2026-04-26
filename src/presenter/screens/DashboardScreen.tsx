@@ -7,6 +7,7 @@ import { Theme } from '../../core/theme';
 import { Card } from '../components/Card';
 import { QuickProductModal } from '../components/QuickProductModal';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +22,90 @@ export function DashboardScreen() {
     const totalItems = products.length;
     const totalStockCount = products.reduce((sum, p) => sum + p.quantity, 0);
     const lowStockItems = products.filter(p => p.quantity <= 10);
+
+    const salesTrendData = useMemo(() => {
+        const last7Days = [...Array(7)].map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            return d.toISOString().split('T')[0];
+        });
+
+        const dailyRevenue = last7Days.map(date => {
+            return sales
+                .filter(s => s.date.startsWith(date))
+                .reduce((sum, s) => sum + (s.sell_price * s.quantity), 0);
+        });
+
+        const dailyProfit = last7Days.map(date => {
+            return sales
+                .filter(s => s.date.startsWith(date))
+                .reduce((sum, s) => sum + ((s.sell_price - s.buy_price) * s.quantity), 0);
+        });
+
+        // If no sales, show some zeros to avoid chart errors
+        const hasData = dailyRevenue.some(v => v > 0);
+
+        return {
+            labels: last7Days.map(d => {
+                const parts = d.split('-');
+                return `${parts[1]}/${parts[2]}`;
+            }),
+            datasets: [
+                {
+                    data: hasData ? dailyRevenue : [0,0,0,0,0,0,0],
+                    color: (opacity = 1) => colors.primary,
+                    strokeWidth: 3
+                },
+                {
+                    data: hasData ? dailyProfit : [0,0,0,0,0,0,0],
+                    color: (opacity = 1) => colors.success,
+                    strokeWidth: 2
+                }
+            ],
+            legend: ["Revenue", "Profit"]
+        };
+    }, [sales, colors.primary, colors.success]);
+
+    const productPieData = useMemo(() => {
+        const data = products
+            .map((p, idx) => {
+                const revenue = sales
+                    .filter(s => s.product_id === p.id)
+                    .reduce((sum, s) => sum + (s.sell_price * s.quantity), 0);
+                
+                // Predefined nice colors
+                const chartColors = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#6366F1'];
+                
+                return {
+                    name: p.name.length > 10 ? p.name.substring(0, 10) + '...' : p.name,
+                    revenue,
+                    color: chartColors[idx % chartColors.length],
+                    legendFontColor: colors.text,
+                    legendFontSize: 10
+                };
+            })
+            .filter(p => p.revenue > 0)
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 5);
+        
+        return data;
+    }, [products, sales, colors.text]);
+
+    const chartConfig = {
+        backgroundGradientFrom: colors.surface,
+        backgroundGradientTo: colors.surface,
+        decimalPlaces: 0,
+        color: (opacity = 1) => colors.text,
+        labelColor: (opacity = 1) => colors.textMuted,
+        style: {
+            borderRadius: 16
+        },
+        propsForDots: {
+            r: "4",
+            strokeWidth: "2",
+            stroke: colors.primary
+        }
+    };
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -89,6 +174,40 @@ export function DashboardScreen() {
                         <Text style={[styles.gridCaption, { color: colors.textMuted }]}>Uncollected funds</Text>
                     </Card>
                 </View>
+
+                <Text style={[styles.sectionHeader, { color: colors.text }]}>Revenue & Profit Trend</Text>
+                <Card style={styles.chartCard}>
+                    <LineChart
+                        data={salesTrendData}
+                        width={width - 80}
+                        height={220}
+                        chartConfig={chartConfig}
+                        bezier
+                        style={{
+                            marginVertical: 8,
+                            borderRadius: 16
+                        }}
+                    />
+                </Card>
+
+                {productPieData.length > 0 && (
+                    <>
+                        <Text style={[styles.sectionHeader, { color: colors.text }]}>Revenue by Product</Text>
+                        <Card style={styles.chartCard}>
+                            <PieChart
+                                data={productPieData}
+                                width={width - 80}
+                                height={200}
+                                chartConfig={chartConfig}
+                                accessor={"revenue"}
+                                backgroundColor={"transparent"}
+                                paddingLeft={"15"}
+                                center={[10, 0]}
+                                absolute
+                            />
+                        </Card>
+                    </>
+                )}
 
                 <Text style={[styles.sectionHeader, { color: colors.text }]}>Quick Actions</Text>
                 <View style={styles.actionRow}>
@@ -244,5 +363,12 @@ const styles = StyleSheet.create({
     recentProductPrice: { fontSize: 13, fontWeight: '900' },
     recentProductQty: { fontSize: 10, marginTop: 2, fontWeight: '700' },
     stockBadge: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
-    stockBadgeText: { fontSize: 8, fontWeight: '900' }
+    stockBadgeText: { fontSize: 8, fontWeight: '900' },
+    chartCard: {
+        padding: 16,
+        borderRadius: 24,
+        marginBottom: 32,
+        alignItems: 'center',
+        justifyContent: 'center'
+    }
 });
