@@ -9,7 +9,7 @@ import { QuickProductModal } from '../components/QuickProductModal';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 
-const { width } = Dimensions.get('window');
+
 
 export function DashboardScreen() {
     const { products, sales, stats, refreshAll, addProduct } = useStore();
@@ -17,7 +17,20 @@ export function DashboardScreen() {
     const navigation = useNavigation<any>();
 
     const [productModalVisible, setProductModalVisible] = useState(false);
-    
+    const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 48);
+
+    const onLayout = (event: any) => {
+        const { width } = event.nativeEvent.layout;
+        setChartWidth(width);
+    };
+
+    const hexToRgba = (hex: string, opacity: number = 1) => {
+        if (!hex || !hex.startsWith('#')) return `rgba(0,0,0,${opacity})`;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    };
 
     const totalItems = products.length;
     const totalStockCount = products.reduce((sum, p) => sum + p.quantity, 0);
@@ -53,12 +66,12 @@ export function DashboardScreen() {
             datasets: [
                 {
                     data: hasData ? dailyRevenue : [0,0,0,0,0,0,0],
-                    color: (opacity = 1) => colors.primary,
+                    color: (opacity = 1) => hexToRgba(colors.primary, opacity),
                     strokeWidth: 3
                 },
                 {
                     data: hasData ? dailyProfit : [0,0,0,0,0,0,0],
-                    color: (opacity = 1) => colors.success,
+                    color: (opacity = 1) => hexToRgba(colors.success, opacity),
                     strokeWidth: 2
                 }
             ],
@@ -95,8 +108,8 @@ export function DashboardScreen() {
         backgroundGradientFrom: colors.surface,
         backgroundGradientTo: colors.surface,
         decimalPlaces: 0,
-        color: (opacity = 1) => colors.text,
-        labelColor: (opacity = 1) => colors.textMuted,
+        color: (opacity = 1) => hexToRgba(colors.text, opacity),
+        labelColor: (opacity = 1) => hexToRgba(colors.textMuted, opacity),
         style: {
             borderRadius: 16
         },
@@ -127,6 +140,7 @@ export function DashboardScreen() {
             <ScrollView 
                 contentContainerStyle={styles.scrollContent} 
                 showsVerticalScrollIndicator={false}
+                onLayout={onLayout}
             >
                 {/* Main Financial Card - Totals */}
                 <Card style={styles.heroCard}>
@@ -177,34 +191,38 @@ export function DashboardScreen() {
 
                 <Text style={[styles.sectionHeader, { color: colors.text }]}>Revenue & Profit Trend</Text>
                 <Card style={styles.chartCard}>
-                    <LineChart
-                        data={salesTrendData}
-                        width={width - 80}
-                        height={220}
-                        chartConfig={chartConfig}
-                        bezier
-                        style={{
-                            marginVertical: 8,
-                            borderRadius: 16
-                        }}
-                    />
+                    {chartWidth > 0 && (
+                        <LineChart
+                            data={salesTrendData}
+                            width={chartWidth - 32}
+                            height={220}
+                            chartConfig={chartConfig}
+                            bezier
+                            style={{
+                                marginVertical: 8,
+                                borderRadius: 16
+                            }}
+                        />
+                    )}
                 </Card>
 
                 {productPieData.length > 0 && (
                     <>
                         <Text style={[styles.sectionHeader, { color: colors.text }]}>Revenue by Product</Text>
                         <Card style={styles.chartCard}>
-                            <PieChart
-                                data={productPieData}
-                                width={width - 80}
-                                height={200}
-                                chartConfig={chartConfig}
-                                accessor={"revenue"}
-                                backgroundColor={"transparent"}
-                                paddingLeft={"15"}
-                                center={[10, 0]}
-                                absolute
-                            />
+                            {chartWidth > 0 && (
+                                <PieChart
+                                    data={productPieData}
+                                    width={chartWidth - 32}
+                                    height={200}
+                                    chartConfig={chartConfig}
+                                    accessor={"revenue"}
+                                    backgroundColor={"transparent"}
+                                    paddingLeft={"15"}
+                                    center={[10, 0]}
+                                    absolute
+                                />
+                            )}
                         </Card>
                     </>
                 )}
