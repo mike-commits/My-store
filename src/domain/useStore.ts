@@ -1,6 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ProductRepository, ShipmentRepository, SaleRepository, PaymentRepository, ManualReportRepository, ExpenseRepository } from '../data/repositories';
 import { Product, Shipment, ShipmentItem, Sale, Payment, ManualReport, Expense } from '../domain/models';
+import { offlineService } from '../data/OfflineService';
+import { NotificationService } from '../data/NotificationService';
+import { supabase } from '../data/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const productRepo = new ProductRepository();
 const shipmentRepo = new ShipmentRepository();
@@ -9,7 +13,6 @@ const paymentRepo = new PaymentRepository();
 const reportRepo = new ManualReportRepository();
 const expenseRepo = new ExpenseRepository();
 
-// Global State Singleton to ensure consistency across screens
 let globalProducts: Product[] = [];
 let globalShipments: Shipment[] = [];
 let globalSales: Sale[] = [];
@@ -22,45 +25,37 @@ const notifyListeners = () => listeners.forEach(l => l());
 
 export const useStore = () => {
     const [, setDummy] = useState({});
-
-    // Sync local state with global state
+    const [loading, setLoading] = useState(false);
     const forceUpdate = useCallback(() => setDummy({}), []);
 
-    const refreshProducts = useCallback(async () => {
-        globalProducts = await productRepo.getProducts();
-        notifyListeners();
-    }, []);
+    const checkLowStock = useCallback(async (products: Product[]) => {
+        const settingsStr = await AsyncStorage.getItem('app_settings');
+        const settings = settingsStr ? JSON.parse(settingsStr) : { notificationsEnabled: true };
+        
+        if (!settings.notificationsEnabled) return;
 
-    const refreshShipments = useCallback(async () => {
-        globalShipments = await shipmentRepo.getShipments();
-        notifyListeners();
-    }, []);
-
-    const refreshSales = useCallback(async () => {
-        globalSales = await saleRepo.getSales();
-        notifyListeners();
-    }, []);
-
-    const refreshFinance = useCallback(async () => {
-        const [pay, exp] = await Promise.all([
-            paymentRepo.getPayments(),
-            expenseRepo.getExpenses()
-        ]);
-        globalPayments = pay;
-        globalExpenses = exp;
-        notifyListeners();
+        for (const p of products) {
+            if (p.quantity <= 5) { // Default threshold
+                await NotificationService.sendLowStockAlert(p.name, p.quantity);
+            }
+        }
     }, []);
 
     const refreshAll = useCallback(async () => {
         try {
-            const [
-                products,
-                shipments,
-                sales,
-                payments,
-                reports,
-                expenses
-            ] = await Promise.all([
+            setLoading(true);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                // Try to load from cache if offline
+                const cached = await offlineService.getCachedProducts();
+                if (cached.length > 0) {
+                    globalProducts = cached;
+                    notifyListeners();
+                }
+                return;
+            }
+
+            const [products, shipments, sales, payments, reports, expenses] = await Promise.all([
                 productRepo.getProducts(),
                 shipmentRepo.getShipments(),
                 saleRepo.getSales(),
@@ -76,188 +71,102 @@ export const useStore = () => {
             globalReports = reports;
             globalExpenses = expenses;
             
+            // Background tasks
+            offlineService.cacheProducts(products);
+            checkLowStock(products);
+            
             notifyListeners();
         } catch (error) {
             console.error('[STORE] Refresh failed:', error);
+            // Fallback to cache on error
+            const cached = await offlineService.getCachedProducts();
+            if (cached.length > 0) globalProducts = cached;
+            notifyListeners();
+        } finally {
+            setLoading(false);
         }
-    }, []);
+    }, [checkLowStock]);
 
     useEffect(() => {
         listeners.push(forceUpdate);
-        // Load data on start if missing
-        if (globalProducts.length === 0) {
-            refreshAll().catch(console.error);
-        }
+        if (globalProducts.length === 0) refreshAll();
+        
+        // Setup notification permissions
+        NotificationService.registerForPushNotificationsAsync();
+
         return () => {
             listeners = listeners.filter(l => l !== forceUpdate);
         };
     }, [forceUpdate, refreshAll]);
 
-    const getAvailableCash = () => {
-        const totalPay = globalPayments.reduce((acc, p) => acc + (p.amount - (p.commission_fee || 0)), 0);
-        const totalExp = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
-        const totalShip = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
-        const totalInv = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
-        const totalCogs = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
-        return totalPay - totalExp - totalShip - totalInv - totalCogs;
-    };
-
     const addProduct = async (product: Omit<Product, 'id'>) => {
-        try {
-            await productRepo.addProduct(product);
-            await refreshProducts(); // Only sync products after adding
-        } catch (error) {
-            console.error('[STORE] Add product failed:', error);
-            throw error;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            await offlineService.addToSyncQueue('INSERT', 'products', product);
+            throw new Error("Offline: Change queued for sync.");
         }
+        await productRepo.addProduct({ ...product, user_id: user.id } as any);
+        await refreshAll();
     };
 
     const updateProduct = async (product: Product) => {
-        try {
-            await productRepo.updateProduct(product);
-            await refreshProducts();
-        } catch (error) {
-            console.error('[STORE] Update product failed:', error);
-            throw error;
-        }
+        await productRepo.updateProduct(product);
+        await refreshAll();
     };
 
     const deleteProduct = async (id: number) => {
         await productRepo.deleteProduct(id);
-        await refreshProducts();
+        await refreshAll();
     };
 
     const addShipment = async (date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id;
         await shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
-        await Promise.all([refreshShipments(), refreshProducts()]); // Shipments affect inventory
+        await refreshAll();
     };
 
     const addSale = async (productId: number, date: string, quantity: number, sellPrice: number) => {
         const product = globalProducts.find(p => p.id === productId);
         const buyPrice = product?.buy_price || 0;
         await saleRepo.addSale(productId, date, quantity, buyPrice, sellPrice);
-        await Promise.all([refreshSales(), refreshProducts()]); // Sales affect inventory
+        await refreshAll();
     };
 
-    const addPayment = async (amount: number, date: string, notes: string, commission_fee: number = 0) => {
-        await paymentRepo.addPayment(amount, date, notes, commission_fee);
-        await refreshFinance();
-    };
-
-    const deletePayment = async (id: number) => {
-        await paymentRepo.deletePayment(id);
-        await refreshFinance();
-    };
-
-    const updatePayment = async (id: number, amount: number, date: string, notes: string, commission_fee: number = 0) => {
-        await paymentRepo.updatePayment(id, amount, new Date(date).toISOString(), notes, commission_fee);
-        await refreshFinance();
-    };
-
-    const addManualReport = async (title: string, content: string, dateOption?: string) => {
-        await reportRepo.addReport(title, content, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString());
-        globalReports = await reportRepo.getReports();
-        notifyListeners();
-    };
-
-    const deleteManualReport = async (id: number) => {
-        await reportRepo.deleteReport(id);
-        globalReports = await reportRepo.getReports();
-        notifyListeners();
-    };
-
-    const updateManualReport = async (id: number, title: string, content: string, date: string) => {
-        await reportRepo.updateReport(id, title, content, new Date(date).toISOString());
-        globalReports = await reportRepo.getReports();
-        notifyListeners();
-    };
-    
-    const addExpense = async (amount: number, description: string, dateOption?: string) => {
-        const available = getAvailableCash();
-        if (amount > available) throw new Error(`Insufficient funds for expense! Required: SSP ${amount.toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
-        await expenseRepo.addExpense(amount, dateOption ? new Date(dateOption).toISOString() : new Date().toISOString(), description);
-        await refreshFinance();
-    };
-
-    const deleteExpense = async (id: number) => {
-        await expenseRepo.deleteExpense(id);
-        await refreshFinance();
-    };
-
-    const updateExpense = async (id: number, amount: number, description: string, date: string) => {
-        const oldExp = globalExpenses.find(e => e.id === id);
-        const oldAmt = oldExp ? oldExp.amount : 0;
-        const available = getAvailableCash();
-        if (amount - oldAmt > available) throw new Error(`Insufficient funds to increase expense! Required: SSP ${(amount - oldAmt).toLocaleString()}, Available: SSP ${available.toLocaleString()}`);
-        await expenseRepo.updateExpense(id, amount, new Date(date).toISOString(), description);
-        await refreshFinance();
-    };
-
-    // Logical Business Calculations
     const stats = useMemo(() => {
-        // 1. Revenue (Total Sales Value)
         const totalRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
-        
-        // 2. Cost of Goods Sold (What it cost to buy the items that were sold)
         const totalCogs = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
-        
-        // 3. Gross Profit (Profit before operating expenses)
         const grossProfit = totalRevenue - totalCogs;
-        
-        // 4. Operating Expenses (OPEX)
         const totalCommissions = globalPayments.reduce((acc, p) => acc + (p.commission_fee || 0), 0);
         const totalShippingFees = globalShipments.reduce((acc, s) => acc + (s.shipping_cost || 0), 0);
         const totalOperatingExpenses = globalExpenses.reduce((acc, e) => acc + e.amount, 0);
         const totalOpex = totalCommissions + totalShippingFees + totalOperatingExpenses;
-        
-        // 5. Net Profit (Actual profit after all costs)
         const netProfit = grossProfit - totalOpex;
-        
-        // 6. Cash Flow & Collections
         const totalPaymentsReceived = globalPayments.reduce((acc, p) => acc + p.amount, 0);
-        const outstandingBalance = totalRevenue - totalPaymentsReceived;
-        
-        // Net Cash Flow (Actual cash in pocket: Net Cash In - Expenses - Shipping)
-        // Note: Inventory purchase costs are typically tracked via Expenses or inferred from COGS
-        const netCashReceived = totalPaymentsReceived - totalCommissions; 
-        const availableCash = netCashReceived - totalOperatingExpenses - totalShippingFees;
-
-        // 7. Assets
+        const availableCash = totalPaymentsReceived - totalCommissions - totalOperatingExpenses - totalShippingFees;
         const inventoryValueAtCost = globalProducts.reduce((acc, p) => acc + (p.buy_price * p.quantity), 0);
-        const inventoryValueAtRetail = globalProducts.reduce((acc, p) => acc + (p.sell_price * p.quantity), 0);
-        const potentialProfit = inventoryValueAtRetail - inventoryValueAtCost;
 
         return {
             totalRevenue,
-            totalCogs,
             grossProfit,
-            totalOpex,
-            totalCommissions,
-            totalShippingFees,
-            totalOperatingExpenses,
             netProfit,
-            totalPaymentsReceived,
-            outstandingBalance,
             availableCash,
             inventoryValueAtCost,
-            inventoryValueAtRetail,
-            potentialProfit,
-            grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
-            netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
+            totalSalesCount: globalSales.length,
+            lowStockCount: globalProducts.filter(p => p.quantity <= 5).length
         };
     }, [globalSales, globalProducts, globalShipments, globalPayments, globalExpenses]);
 
     return {
         stats,
+        loading,
         refreshAll,
-        // Entities
         products: globalProducts,
         shipments: globalShipments,
         sales: globalSales,
         payments: globalPayments,
         manualReports: globalReports,
         expenses: globalExpenses,
-        // Actions
         addProduct,
         updateProduct,
         deleteProduct,
@@ -271,19 +180,5 @@ export const useStore = () => {
             await saleRepo.deleteSale(id);
             await refreshAll();
         },
-        addPayment,
-        updatePayment,
-        deletePayment,
-        addManualReport,
-        updateManualReport,
-        deleteManualReport,
-        addExpense,
-        updateExpense,
-        deleteExpense,
-        // Helpers
-        getProductShipments: (productId: number) => productRepo.getProductShipments(productId),
-        getProductSales: (productId: number) => productRepo.getProductSales(productId),
-        shipmentRepo,
-        productRepo,
     };
-}
+};

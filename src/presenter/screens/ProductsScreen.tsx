@@ -1,22 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, Platform, TouchableOpacity } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, Platform, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../domain/useStore';
 import { useNavigation } from '@react-navigation/native';
 import { Product } from '../../domain/models';
-import { Theme } from '../../core/theme';
 import { Card } from '../components/Card';
 import { AppButton } from '../components/AppButton';
 import { FormLayout } from '../components/FormLayout';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
+import { SearchBar } from '../components/SearchBar';
+import { EmptyState } from '../components/EmptyState';
+import { ListItemSkeleton } from '../components/Skeletons';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
+import { ImageUpload } from '../components/ImageUpload';
+import { ProductSchema } from '../../domain/validation';
 
 export function ProductsScreen() {
-    const { products, addProduct, updateProduct, deleteProduct, refreshAll } = useStore();
+    const { products, addProduct, updateProduct, deleteProduct, loading } = useStore();
     const { colors, isDark } = useAppTheme();
     const navigation = useNavigation<any>();
-    const [modalVisible, setModalVisible] = useState(false);
     
+    const [modalVisible, setModalVisible] = useState(false);
+    const [scannerVisible, setScannerVisible] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('All');
+
     const [editingId, setEditingId] = useState<number | null>(null);
     const [name, setName] = useState('');
     const [category, setCategory] = useState('Others');
@@ -24,42 +33,24 @@ export function ProductsScreen() {
     const [sellPrice, setSellPrice] = useState('');
     const [quantity, setQuantity] = useState('');
     const [notes, setNotes] = useState('');
-    const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
+    const [imageUrl, setImageUrl] = useState('');
     const [buyUnit, setBuyUnit] = useState<'pcs' | 'doz'>('pcs');
 
-    const CATEGORIES = [
-        'Shoes (Men)', 'Shoes (Women)', 'Shoes (Kids)',
-        'Clothing (Men)', 'Clothing (Women)', 'Clothing (Kids)',
-        'Jewelry', 'Accessories', 'Others'
-    ];
+    const CATEGORIES = ['All', 'Shoes (Men)', 'Shoes (Women)', 'Shoes (Kids)', 'Clothing (Men)', 'Clothing (Women)', 'Clothing (Kids)', 'Jewelry', 'Accessories', 'Others'];
 
-
-    const resetForm = () => {
-        setEditingId(null);
-        setName('');
-        setCategory('Others');
-        setBuyPrice('');
-        setSellPrice('');
-        setQuantity('');
-        setNotes('');
-        setBuyUnit('pcs');
-        setDateInput(new Date().toISOString().split('T')[0]);
-    };
+    const filteredProducts = useMemo(() => {
+        return products.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                 p.category.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+            return matchesSearch && matchesCategory;
+        }).sort((a, b) => b.id - a.id);
+    }, [products, searchQuery, selectedCategory]);
 
     const handleSave = async () => {
-        if (!name || !category || !buyPrice || !sellPrice || !quantity) {
-            Alert.alert('Error', 'Please fill all fields');
-            return;
-        }
-
         try {
-            let finalBuyPrice = parseFloat(buyPrice);
-            let finalQuantity = parseInt(quantity, 10);
-
-            if (buyUnit === 'doz') {
-                finalBuyPrice = finalBuyPrice / 12;
-                finalQuantity = finalQuantity * 12;
-            }
+            const finalBuyPrice = buyUnit === 'doz' ? parseFloat(buyPrice) / 12 : parseFloat(buyPrice);
+            const finalQuantity = buyUnit === 'doz' ? parseInt(quantity, 10) * 12 : parseInt(quantity, 10);
 
             const productData = {
                 name,
@@ -68,8 +59,16 @@ export function ProductsScreen() {
                 sell_price: parseFloat(sellPrice),
                 quantity: finalQuantity,
                 notes,
-                date: new Date(dateInput).toISOString()
+                image_url: imageUrl,
+                date: new Date().toISOString()
             };
+
+            // Validation
+            const result = ProductSchema.safeParse(productData);
+            if (!result.success) {
+                Alert.alert('Validation Error', result.error.errors[0].message);
+                return;
+            }
 
             if (editingId) {
                 await updateProduct({ id: editingId, ...productData });
@@ -84,6 +83,18 @@ export function ProductsScreen() {
         }
     };
 
+    const resetForm = () => {
+        setEditingId(null);
+        setName('');
+        setCategory('Others');
+        setBuyPrice('');
+        setSellPrice('');
+        setQuantity('');
+        setNotes('');
+        setImageUrl('');
+        setBuyUnit('pcs');
+    };
+
     const handleEdit = (p: Product) => {
         setEditingId(p.id);
         setName(p.name);
@@ -92,231 +103,158 @@ export function ProductsScreen() {
         setSellPrice(p.sell_price.toString());
         setQuantity(p.quantity.toString());
         setNotes(p.notes || '');
-        setDateInput(p.date ? new Date(p.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+        setImageUrl(p.image_url || '');
         setModalVisible(true);
     };
 
-    const handleDelete = (id: number) => {
-        const performDelete = async () => {
-            try {
-                await deleteProduct(id);
-            } catch (e: any) {
-                Alert.alert('Error', e.message || 'Failed to delete product');
-            }
-        };
-
-        if (Platform.OS === 'web') {
-            if (window.confirm('Are you sure? This will remove the product and its history.')) {
-                performDelete();
-            }
-        } else {
-            Alert.alert('Confirm Delete', 'Are you sure? This will remove the product and its history.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: performDelete },
-            ]);
-        }
-    };
-
-    const renderItem = ({ item }: { item: Product }) => {
-        return (
-            <Card>
-                <View style={styles.cardHeader}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.productName, { color: colors.text }]}>{item.name}</Text>
-                        <Text style={[styles.categoryText, { color: colors.textMuted }]}>{item.category}</Text>
+    const renderItem = ({ item }: { item: Product }) => (
+        <Card style={styles.productCard} onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}>
+            <View style={styles.cardHeader}>
+                {item.image_url ? (
+                    <Image source={{ uri: item.image_url }} style={styles.productImage} />
+                ) : (
+                    <View style={[styles.imagePlaceholder, { backgroundColor: colors.border }]}>
+                        <Text style={{ color: colors.textMuted }}>No Image</Text>
                     </View>
-                    <View style={[styles.stockBadge, { backgroundColor: isDark ? colors.primaryLight : '#F5F3FF' }]}>
-                        <Text style={[styles.stockBadgeText, { color: colors.primary }]}>{item.quantity} in stock</Text>
+                )}
+                <View style={{ flex: 1, marginLeft: 16 }}>
+                    <Text style={[styles.productName, { color: colors.text }]}>{item.name}</Text>
+                    <Text style={[styles.categoryText, { color: colors.textMuted }]}>{item.category}</Text>
+                    <View style={styles.priceBadge}>
+                        <Text style={[styles.priceText, { color: colors.primary }]}>SSP {item.sell_price.toLocaleString()}</Text>
                     </View>
                 </View>
-
-                {item.notes ? (
-                    <View style={[styles.notesContainer, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border }]}>
-                        <Text style={[styles.notesText, { color: colors.textSecondary }]}>{item.notes}</Text>
-                    </View>
-                ) : null}
-                
-                <View style={[styles.detailsRow, { borderTopColor: colors.border }]}>
-                    <View style={styles.detailItem}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Buy Price</Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>SSP {item.buy_price.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Sell Price</Text>
-                        <Text style={[styles.detailValue, { color: colors.primary }]}>SSP {item.sell_price.toFixed(2)}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Margin</Text>
-                        <Text style={[styles.detailValue, { color: colors.secondary }]}>
-                            SSP {(item.sell_price - item.buy_price).toFixed(2)}
-                        </Text>
-                    </View>
+                <View style={[styles.stockBadge, { backgroundColor: item.quantity <= 10 ? colors.error + '20' : colors.success + '20' }]}>
+                    <Text style={[styles.stockBadgeText, { color: item.quantity <= 10 ? colors.error : colors.success }]}>
+                        {item.quantity} Left
+                    </Text>
                 </View>
-
-                <View style={styles.cardActions}>
-                    <AppButton 
-                        title="Review" 
-                        type="primary" 
-                        onPress={() => navigation.navigate('ProductDetails', { productId: item.id })} 
-                        style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
-                        textStyle={{ fontSize: 13 }}
-                    />
-                    <AppButton 
-                        title="Edit" 
-                        type="outline" 
-                        onPress={() => handleEdit(item)} 
-                        style={styles.actionBtn}
-                        textStyle={{ fontSize: 13 }}
-                    />
-                    <AppButton 
-                        title="Delete" 
-                        type="ghost" 
-                        onPress={() => handleDelete(item.id)} 
-                        style={styles.actionBtn}
-                        textStyle={{ fontSize: 13, color: colors.error }}
-                    />
-                </View>
-            </Card>
-        )
-    };
+            </View>
+        </Card>
+    );
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.header}>
                 <View>
                     <Text style={[styles.headerAccent, { color: colors.primary }]}>INVENTORY</Text>
-                    <Text style={[styles.title, { color: colors.text }]}>All Products</Text>
-                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>{products.length} Items Listed</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>Stock Manager</Text>
                 </View>
                 <AppButton 
-                    title="+ Add New" 
-                    onPress={() => { 
-                        try {
-                            resetForm(); 
-                            setModalVisible(true); 
-                        } catch (err) {
-                            console.error('[UI] Crash in Add New button:', err);
-                        }
-                    }}
-                    style={{ borderRadius: 30, paddingHorizontal: 20 }}
+                    title="+ Add" 
+                    onPress={() => { resetForm(); setModalVisible(true); }}
+                    style={styles.addButton}
                 />
             </View>
 
-            <FlatList
-                data={products}
-                keyExtractor={p => p.id.toString()}
-                renderItem={renderItem}
-                contentContainerStyle={styles.list}
-                ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textMuted }]}>Standing by for first product...</Text>}
+            <SearchBar 
+                value={searchQuery} 
+                onChangeText={setSearchQuery} 
+                onBarcodePress={() => setScannerVisible(true)}
             />
-            <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+
+            <View style={styles.filterBar}>
+                <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={CATEGORIES}
+                    keyExtractor={item => item}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity 
+                            onPress={() => setSelectedCategory(item)}
+                            style={[
+                                styles.filterItem, 
+                                { backgroundColor: selectedCategory === item ? colors.primary : colors.surface },
+                                { borderColor: colors.border }
+                            ]}
+                        >
+                            <Text style={[styles.filterText, { color: selectedCategory === item ? '#FFF' : colors.textSecondary }]}>{item}</Text>
+                        </TouchableOpacity>
+                    )}
+                    contentContainerStyle={{ paddingHorizontal: 24 }}
+                />
+            </View>
+
+            {loading ? (
+                <View style={{ padding: 24 }}>
+                    <ListItemSkeleton />
+                    <ListItemSkeleton />
+                    <ListItemSkeleton />
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredProducts}
+                    keyExtractor={p => p.id.toString()}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.list}
+                    ListEmptyComponent={
+                        <EmptyState 
+                            icon="box" 
+                            title={searchQuery ? "No Matches" : "Empty Inventory"} 
+                            body={searchQuery ? "Try searching for something else" : "Start by adding your first product to the store."}
+                            ctaLabel={searchQuery ? "Clear Search" : "Add Product"}
+                            onCtaPress={() => searchQuery ? setSearchQuery('') : setModalVisible(true)}
+                        />
+                    }
+                />
+            )}
+
+            <BarcodeScannerModal 
+                visible={scannerVisible} 
+                onClose={() => setScannerVisible(false)} 
+                onScan={(data) => { setSearchQuery(data); setScannerVisible(false); }} 
+            />
+
+            <Modal visible={modalVisible} animationType="slide">
+                <FormLayout contentContainerStyle={[styles.modalContent, { backgroundColor: colors.surface }]}>
                     <View style={styles.modalHeader}>
                         <Text style={[styles.modalTitle, { color: colors.text }]}>{editingId ? 'Edit Product' : 'New Product'}</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setModalVisible(false)} />
+                        <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={{ color: colors.primary, fontWeight: '700' }}>Cancel</Text></TouchableOpacity>
                     </View>
 
-                    <View style={styles.formSection}>
-                        <Text style={[styles.label, { color: colors.textMuted }]}>PRODUCT NAME</Text>
+                    <ImageUpload value={imageUrl} onUpload={setImageUrl} />
+
+                    <Text style={[styles.label, { color: colors.textMuted }]}>BASIC INFO</Text>
+                    <TextInput 
+                        style={[styles.input, { borderColor: colors.border, color: colors.text }]} 
+                        placeholder="Product Name" 
+                        value={name} onChangeText={setName}
+                    />
+                    
+                    <CategoryPicker value={category} onSelect={setCategory} categories={CATEGORIES.slice(1)} />
+
+                    <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>PRICING & STOCK</Text>
+                    <View style={styles.row}>
                         <TextInput 
-                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                            placeholder="e.g. Premium T-Shirt" 
-                            placeholderTextColor={colors.textMuted}
-                            value={name} 
-                            onChangeText={setName} 
+                            style={[styles.input, { flex: 1, borderColor: colors.border, color: colors.text }]} 
+                            placeholder={`Buy Price (${buyUnit})`} 
+                            value={buyPrice} onChangeText={setBuyPrice} keyboardType="numeric"
                         />
-
-                        <CategoryPicker 
-                            value={category} 
-                            onSelect={setCategory} 
-                            categories={CATEGORIES} 
-                        />
-
-                        <View style={styles.row}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.label, { color: colors.textMuted }]}>BUY PRICE {buyUnit === 'doz' ? '(SSP/DOZ)' : '(SSP/PC)'}</Text>
-                                <TextInput 
-                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                    placeholder="0" 
-                                    placeholderTextColor={colors.textMuted}
-                                    value={buyPrice} 
-                                    onChangeText={setBuyPrice} 
-                                    keyboardType="numeric" 
-                                />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.label, { color: colors.textMuted }]}>SELL PRICE (SSP/PC)</Text>
-                                <TextInput 
-                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                    placeholder="0" 
-                                    placeholderTextColor={colors.textMuted}
-                                    value={sellPrice} 
-                                    onChangeText={setSellPrice} 
-                                    keyboardType="numeric" 
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.row}>
-                            <View style={[styles.labelRow, { flex: 1, marginBottom: 0 }]}>
-                                <Text style={[styles.label, { color: colors.textMuted, marginBottom: 0 }]}>QUANTITY</Text>
-                                <View style={[styles.unitToggle, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6', marginVertical: 0 }]}>
-                                    <TouchableOpacity 
-                                        onPress={() => setBuyUnit('pcs')}
-                                        style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}
-                                    >
-                                        <Text style={[styles.unitBtnText, buyUnit === 'pcs' ? { color: '#FFF' } : { color: colors.textMuted }]}>PCS</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                        onPress={() => setBuyUnit('doz')}
-                                        style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}
-                                    >
-                                        <Text style={[styles.unitBtnText, buyUnit === 'doz' ? { color: '#FFF' } : { color: colors.textMuted }]}>DOZ</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                            <View style={[styles.labelRow, { flex: 1, marginBottom: 0 }]}>
-                                <Text style={[styles.label, { color: colors.textMuted, marginBottom: 0 }]}>DATE ADDED</Text>
-                            </View>
-                        </View>
-
-                        <View style={[styles.row, { marginTop: 8 }]}>
-                            <View style={{ flex: 1 }}>
-                                <TextInput 
-                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                    placeholder={buyUnit === 'doz' ? "0 doz" : "0 pcs"} 
-                                    placeholderTextColor={colors.textMuted}
-                                    value={quantity} 
-                                    onChangeText={setQuantity} 
-                                    keyboardType="numeric" 
-                                />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <TextInput 
-                                    style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                    placeholder="YYYY-MM-DD" 
-                                    placeholderTextColor={colors.textMuted}
-                                    value={dateInput} 
-                                    onChangeText={setDateInput} 
-                                />
-                            </View>
-                        </View>
-
-                        <Text style={[styles.label, { color: colors.textMuted }]}>NOTES & DESCRIPTION</Text>
                         <TextInput 
-                            style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 80, textAlignVertical: 'top' }]} 
-                            placeholder="Add categorize details, size, or special notes here..." 
-                            placeholderTextColor={colors.textMuted}
-                            value={notes} 
-                            onChangeText={setNotes} 
-                            multiline
+                            style={[styles.input, { flex: 1, borderColor: colors.border, color: colors.text }]} 
+                            placeholder="Sell Price (pc)" 
+                            value={sellPrice} onChangeText={setSellPrice} keyboardType="numeric"
                         />
                     </View>
 
-                    <View style={styles.modalActions}>
-                        <AppButton title="Cancel" type="outline" style={{ flex: 1 }} onPress={() => setModalVisible(false)} />
-                        <AppButton title={editingId ? "Update Product" : "Save Product"} style={{ flex: 2 }} onPress={handleSave} />
+                    <View style={styles.row}>
+                        <TextInput 
+                            style={[styles.input, { flex: 1, borderColor: colors.border, color: colors.text }]} 
+                            placeholder={`Qty (${buyUnit})`} 
+                            value={quantity} onChangeText={setQuantity} keyboardType="numeric"
+                        />
+                        <View style={styles.unitToggle}>
+                            <TouchableOpacity onPress={() => setBuyUnit('pcs')} style={[styles.unitBtn, buyUnit === 'pcs' && { backgroundColor: colors.primary }]}>
+                                <Text style={{ color: buyUnit === 'pcs' ? '#FFF' : colors.textMuted }}>PCS</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setBuyUnit('doz')} style={[styles.unitBtn, buyUnit === 'doz' && { backgroundColor: colors.primary }]}>
+                                <Text style={{ color: buyUnit === 'doz' ? '#FFF' : colors.textMuted }}>DOZ</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
+
+                    <AppButton title="Save Product" onPress={handleSave} style={{ marginTop: 20 }} />
+                    <View style={{ height: 100 }} />
                 </FormLayout>
             </Modal>
         </SafeAreaView>
@@ -325,73 +263,30 @@ export function ProductsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { 
-        paddingHorizontal: 24, 
-        paddingTop: 40,
-        paddingBottom: 24,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end'
-    },
+    header: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerAccent: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
-    title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-    subtitle: { fontSize: 13, marginTop: 4 },
-    list: { paddingHorizontal: 20, paddingBottom: 100 },
-    
-    productName: { fontSize: 16, fontWeight: 'bold' },
+    title: { fontSize: 26, fontWeight: '900' },
+    addButton: { borderRadius: 30, paddingHorizontal: 16 },
+    filterBar: { marginBottom: 20 },
+    filterItem: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1 },
+    filterText: { fontSize: 13, fontWeight: '700' },
+    list: { paddingHorizontal: 24, paddingBottom: 100 },
+    productCard: { marginBottom: 12, padding: 12 },
+    cardHeader: { flexDirection: 'row', alignItems: 'center' },
+    productImage: { width: 60, height: 60, borderRadius: 12 },
+    imagePlaceholder: { width: 60, height: 60, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    productName: { fontSize: 15, fontWeight: 'bold' },
     categoryText: { fontSize: 12, marginTop: 2 },
-    stockBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    stockBadgeText: { fontSize: 11, fontWeight: 'bold' },
-    detailsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, paddingVertical: 10, borderTopWidth: 1 },
-    detailItem: { flex: 1 },
-    detailLabel: { fontSize: 9, textTransform: 'uppercase', marginBottom: 2, fontWeight: 'bold' },
-    detailValue: { fontSize: 14, fontWeight: '900' },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    cardActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10, gap: 10 },
-    actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20 },
-    emptyText: { textAlign: 'center', marginTop: 100, fontWeight: '600' },
-
-    notesContainer: { padding: 12, borderRadius: 12, marginTop: 12, borderWidth: 1 },
-    notesText: { fontSize: 13, lineHeight: 18, fontStyle: 'italic' },
-
-    modalContainer: { padding: 24, paddingTop: 60 },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
-    modalTitle: { fontSize: 24, fontWeight: '900' },
-    formSection: { marginBottom: 24 },
-    label: { fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
-    labelRow: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: 8,
-        minHeight: 40, // Force vertical alignment regardless of toggle width
-    },
-    unitToggle: { 
-        flexDirection: 'row', 
-        borderRadius: 12, 
-        padding: 4,
-        alignItems: 'center',
-        marginVertical: 4
-    },
-    unitBtn: { 
-        paddingHorizontal: 12, 
-        paddingVertical: 6, 
-        borderRadius: 8,
-        minWidth: 48,
-        alignItems: 'center'
-    },
-    unitBtnText: { 
-        fontSize: 10, 
-        fontWeight: '900', 
-        letterSpacing: 0.5
-    },
-    row: { flexDirection: 'row', gap: 16 },
-    input: { 
-        padding: 16, 
-        borderRadius: 12, 
-        borderWidth: 1, 
-        fontSize: 16,
-        marginBottom: 16,
-    },
-    modalActions: { flexDirection: 'row', gap: 16, marginTop: 24, paddingBottom: 40 }
+    priceBadge: { marginTop: 4 },
+    priceText: { fontWeight: '900', fontSize: 14 },
+    stockBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    stockBadgeText: { fontSize: 10, fontWeight: 'bold' },
+    modalContent: { padding: 24, paddingTop: 40 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    modalTitle: { fontSize: 20, fontWeight: '900' },
+    label: { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 10 },
+    input: { height: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, marginBottom: 12 },
+    row: { flexDirection: 'row', gap: 12 },
+    unitToggle: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, height: 50, flex: 1 },
+    unitBtn: { flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
 });

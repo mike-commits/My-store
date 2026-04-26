@@ -33,7 +33,9 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-barcode-scanner",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

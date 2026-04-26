@@ -3,13 +3,11 @@ import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../domain/useStore';
 import { useNavigation } from '@react-navigation/native';
-import { Theme } from '../../core/theme';
 import { Card } from '../components/Card';
 import { QuickProductModal } from '../components/QuickProductModal';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
 import { LineChart, PieChart } from 'react-native-chart-kit';
-
-
+import { Feather } from '@expo/vector-icons';
 
 export function DashboardScreen() {
     const { products, sales, stats, refreshAll, addProduct } = useStore();
@@ -32,10 +30,6 @@ export function DashboardScreen() {
         return `rgba(${r}, ${g}, ${b}, ${opacity})`;
     };
 
-    const totalItems = products.length;
-    const totalStockCount = products.reduce((sum, p) => sum + p.quantity, 0);
-    const lowStockItems = products.filter(p => p.quantity <= 10);
-
     const salesTrendData = useMemo(() => {
         const last7Days = [...Array(7)].map((_, i) => {
             const d = new Date();
@@ -49,15 +43,6 @@ export function DashboardScreen() {
                 .reduce((sum, s) => sum + (s.sell_price * s.quantity), 0);
         });
 
-        const dailyProfit = last7Days.map(date => {
-            return sales
-                .filter(s => s.date.startsWith(date))
-                .reduce((sum, s) => sum + ((s.sell_price - s.buy_price) * s.quantity), 0);
-        });
-
-        // If no sales, show some zeros to avoid chart errors
-        const hasData = dailyRevenue.some(v => v > 0);
-
         return {
             labels: last7Days.map(d => {
                 const parts = d.split('-');
@@ -65,378 +50,162 @@ export function DashboardScreen() {
             }),
             datasets: [
                 {
-                    data: hasData ? dailyRevenue : [0,0,0,0,0,0,0],
+                    data: dailyRevenue.some(v => v > 0) ? dailyRevenue : [0,0,0,0,0,0,0],
                     color: (opacity = 1) => hexToRgba(colors.primary, opacity),
                     strokeWidth: 4,
-                },
-                {
-                    data: hasData ? dailyProfit : [0,0,0,0,0,0,0],
-                    color: (opacity = 1) => hexToRgba(colors.success, opacity),
-                    strokeWidth: 2,
                 }
             ],
-            legend: ["Revenue", "Profit"]
+            legend: ["Revenue (Daily)"]
         };
-    }, [sales, colors.primary, colors.success]);
+    }, [sales, colors.primary]);
 
     const productPieData = useMemo(() => {
-        // Professional Dashboard Palette
-        const chartColors = [
-            '#8B5CF6', // Violet
-            '#10B981', // Emerald
-            '#3B82F6', // Blue
-            '#F59E0B', // Amber
-            '#EC4899', // Pink
-            '#06B6D4', // Cyan
-        ];
-
-        const data = products
-            .map((p, idx) => {
-                const revenue = sales
-                    .filter(s => s.product_id === p.id)
-                    .reduce((sum, s) => sum + (s.sell_price * s.quantity), 0);
-                
-                return {
-                    name: p.name.length > 12 ? p.name.substring(0, 12) + '..' : p.name,
-                    revenue,
-                    color: chartColors[idx % chartColors.length],
-                    legendFontColor: colors.textSecondary,
-                    legendFontSize: 11
-                };
-            })
+        const chartColors = ['#8B5CF6', '#10B981', '#3B82F6', '#F59E0B', '#EC4899'];
+        return products
+            .map((p, idx) => ({
+                name: p.name.substring(0, 10),
+                revenue: sales.filter(s => s.product_id === p.id).reduce((sum, s) => sum + (s.sell_price * s.quantity), 0),
+                color: chartColors[idx % chartColors.length],
+                legendFontColor: colors.textSecondary,
+                legendFontSize: 11
+            }))
             .filter(p => p.revenue > 0)
             .sort((a, b) => b.revenue - a.revenue)
             .slice(0, 5);
-        
-        return data;
     }, [products, sales, colors.textSecondary]);
-
-    const chartConfig = {
-        backgroundGradientFrom: colors.surface,
-        backgroundGradientTo: colors.surface,
-        fillShadowGradientFrom: colors.primary,
-        fillShadowGradientTo: colors.surface,
-        fillShadowGradientFromOpacity: 0.2,
-        fillShadowGradientToOpacity: 0,
-        decimalPlaces: 0,
-        color: (opacity = 1) => hexToRgba(colors.primary, opacity),
-        labelColor: (opacity = 1) => colors.textMuted,
-        style: {
-            borderRadius: 24,
-        },
-        propsForDots: {
-            r: "0", // Hide dots for a cleaner look
-        },
-        propsForBackgroundLines: {
-            strokeDasharray: "5", // Dashed lines
-            stroke: colors.border,
-            strokeWidth: 1,
-        },
-        propsForLabels: {
-            fontSize: 10,
-            fontWeight: '600'
-        },
-        useShadowColorFromDataset: false,
-    };
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={[styles.header, { backgroundColor: colors.surface }]}>
+            <View style={styles.header}>
                 <View>
-                    <Text style={[styles.headerAccent, { color: colors.primary }]}>BUSINESS INTELLIGENCE</Text>
+                    <Text style={[styles.headerAccent, { color: colors.primary }]}>OVERVIEW</Text>
                     <Text style={[styles.title, { color: colors.text }]}>Operation Center</Text>
                 </View>
-                <View style={styles.headerActions}>
-                    <TouchableOpacity style={[styles.themeToggle, { backgroundColor: isDark ? colors.primaryLight : '#F3E8FF' }]} onPress={toggleTheme}>
-                        <Text style={styles.themeToggleIcon}>{isDark ? '☀️' : '🌙'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.userProfile, { backgroundColor: isDark ? colors.primaryLight : '#F3E8FF' }]}>
-                        <Text style={[styles.userInitial, { color: colors.primary }]}>M</Text>
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.settingsBtn, { backgroundColor: colors.surface }]}>
+                    <Feather name="settings" size={20} color={colors.text} />
+                </TouchableOpacity>
             </View>
 
-            <ScrollView 
-                contentContainerStyle={styles.scrollContent} 
-                showsVerticalScrollIndicator={false}
-                onLayout={onLayout}
-            >
-                {/* Main Financial Card - Totals */}
+            <ScrollView contentContainerStyle={styles.scrollContent} onLayout={onLayout} showsVerticalScrollIndicator={false}>
                 <Card style={styles.heroCard}>
-                    <View style={styles.heroHeader}>
-                        <Text style={styles.heroLabel}>LIFETIME PERFORMANCE</Text>
-                    </View>
-                    <View style={styles.heroRow}>
-                        <View style={styles.heroStat}>
-                            <Text style={styles.heroSubLabel}>TOTAL REVENUE</Text>
-                            <Text style={styles.heroValue}>SSP {stats.totalRevenue.toLocaleString()}</Text>
+                    <Text style={styles.heroLabel}>NET PROFIT</Text>
+                    <Text style={styles.heroValue}>SSP {stats.netProfit.toLocaleString()}</Text>
+                    <View style={styles.heroStats}>
+                        <View>
+                            <Text style={styles.heroSubLabel}>REVENUE</Text>
+                            <Text style={styles.heroSubValue}>SSP {stats.totalRevenue.toLocaleString()}</Text>
                         </View>
                         <View style={styles.heroDivider} />
-                        <View style={styles.heroStat}>
-                            <Text style={styles.heroSubLabel}>TOTAL PROFIT</Text>
-                            <Text style={styles.heroValue}>SSP {stats.netProfit.toLocaleString()}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.heroBadgeRow}>
-                        <View style={styles.heroBadge}>
-                            <Text style={styles.heroBadgeText}>{stats.netMargin.toFixed(1)}% NET MARGIN</Text>
-                        </View>
-                        <View style={[styles.heroBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <Text style={styles.heroBadgeText}>{sales.length} SALES RECORDED</Text>
+                        <View>
+                            <Text style={styles.heroSubLabel}>CASH FLOW</Text>
+                            <Text style={styles.heroSubValue}>SSP {stats.availableCash.toLocaleString()}</Text>
                         </View>
                     </View>
                 </Card>
 
-                <View style={styles.gridRow}>
-                    <Card style={styles.gridCard}>
-                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Gross Profit</Text>
-                        <Text style={[styles.gridValue, { color: colors.success }]}>SSP {stats.grossProfit.toLocaleString()}</Text>
-                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>{stats.grossMargin.toFixed(0)}% avg margin</Text>
-                    </Card>
-                    <Card style={styles.gridCard}>
-                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Operating Costs</Text>
-                        <Text style={[styles.gridValue, { color: colors.error }]}>SSP {stats.totalOpex.toLocaleString()}</Text>
-                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>Fees, Ship, Exp</Text>
-                    </Card>
+                {stats.lowStockCount > 0 && (
+                    <TouchableOpacity onPress={() => navigation.navigate('Items')} style={[styles.alertBar, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
+                        <Feather name="alert-triangle" size={18} color={colors.error} />
+                        <Text style={[styles.alertText, { color: colors.error }]}>{stats.lowStockCount} items are running low on stock!</Text>
+                    </TouchableOpacity>
+                )}
+
+                <View style={styles.actionRow}>
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface }]} onPress={() => setProductModalVisible(true)}>
+                        <View style={[styles.iconBox, { backgroundColor: colors.primary }]}>
+                            <Feather name="plus" size={20} color="#FFF" />
+                        </View>
+                        <Text style={[styles.actionLabel, { color: colors.text }]}>Add Item</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.navigate('Sell')}>
+                        <View style={[styles.iconBox, { backgroundColor: colors.success }]}>
+                            <Feather name="dollar-sign" size={20} color="#FFF" />
+                        </View>
+                        <Text style={[styles.actionLabel, { color: colors.text }]}>Record Sale</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface }]} onPress={() => navigation.navigate('Shipments')}>
+                        <View style={[styles.iconBox, { backgroundColor: colors.warning }]}>
+                            <Feather name="truck" size={20} color="#FFF" />
+                        </View>
+                        <Text style={[styles.actionLabel, { color: colors.text }]}>Log Ship</Text>
+                    </TouchableOpacity>
                 </View>
 
-                <View style={styles.gridRow}>
-                    <Card style={styles.gridCard}>
-                        <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Balance Due</Text>
-                        <Text style={[styles.gridValue, { color: stats.outstandingBalance > 0 ? colors.warning : colors.text }]}>SSP {stats.outstandingBalance.toLocaleString()}</Text>
-                        <Text style={[styles.gridCaption, { color: colors.textMuted }]}>Uncollected funds</Text>
-                    </Card>
-                </View>
-
-                <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 12 }]}>Performance Analytics</Text>
-                <Card style={[styles.chartCard, { paddingVertical: 24 }]}>
-                    <View style={styles.chartHeader}>
-                        <Text style={[styles.chartTitle, { color: colors.text }]}>Revenue vs Profit</Text>
-                        <Text style={[styles.chartSub, { color: colors.textMuted }]}>Last 7 Days (SSP)</Text>
-                    </View>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Revenue Trend</Text>
+                <Card style={styles.chartCard}>
                     {chartWidth > 0 && (
                         <LineChart
                             data={salesTrendData}
-                            width={chartWidth - 16}
-                            height={220}
-                            chartConfig={chartConfig}
-                            bezier
-                            withVerticalLines={false}
-                            withHorizontalLines={true}
-                            withInnerLines={true}
-                            withDots={false}
-                            withShadow={true}
-                            segments={4}
-                            fromZero={true}
-                            style={{
-                                marginVertical: 8,
-                                marginLeft: -16, // Adjust for padding
+                            width={chartWidth - 48}
+                            height={180}
+                            chartConfig={{
+                                backgroundGradientFrom: colors.surface,
+                                backgroundGradientTo: colors.surface,
+                                color: (opacity = 1) => hexToRgba(colors.primary, opacity),
+                                labelColor: (opacity = 1) => colors.textMuted,
+                                decimalPlaces: 0,
+                                propsForDots: { r: "0" },
+                                propsForBackgroundLines: { strokeDasharray: "5", stroke: colors.border }
                             }}
+                            bezier
+                            style={{ borderRadius: 16 }}
                         />
                     )}
                 </Card>
 
                 {productPieData.length > 0 && (
-                    <>
-                        <Card style={[styles.chartCard, { paddingVertical: 24 }]}>
-                            <View style={styles.chartHeader}>
-                                <Text style={[styles.chartTitle, { color: colors.text }]}>Revenue Distribution</Text>
-                                <Text style={[styles.chartSub, { color: colors.textMuted }]}>Top 5 Products</Text>
-                            </View>
-                            {chartWidth > 0 && (
-                                <PieChart
-                                    data={productPieData}
-                                    width={chartWidth}
-                                    height={180}
-                                    chartConfig={chartConfig}
-                                    accessor={"revenue"}
-                                    backgroundColor={"transparent"}
-                                    paddingLeft={"0"}
-                                    center={[10, 0]}
-                                    absolute
-                                />
-                            )}
-                        </Card>
-                    </>
+                    <Card style={styles.chartCard}>
+                        <PieChart
+                            data={productPieData}
+                            width={chartWidth - 48}
+                            height={160}
+                            chartConfig={{ color: () => colors.primary }}
+                            accessor="revenue"
+                            backgroundColor="transparent"
+                            paddingLeft="0"
+                            absolute
+                        />
+                    </Card>
                 )}
 
-                <Text style={[styles.sectionHeader, { color: colors.text }]}>Quick Actions</Text>
-                <View style={styles.actionRow}>
-                    <TouchableOpacity 
-                        style={[styles.actionCard, { backgroundColor: isDark ? '#1E293B' : '#EEF2FF' }]}
-                        onPress={() => setProductModalVisible(true)}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: '#4F46E5' }]}>
-                            <Text style={styles.actionIconText}>+</Text>
-                        </View>
-                        <Text style={[styles.actionLabel, { color: colors.text }]}>Add Product</Text>
-                    </TouchableOpacity>
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('Reports')}
+                    style={[styles.reportsLink, { backgroundColor: colors.primary }]}
+                >
+                    <Text style={styles.reportsLinkText}>View Detailed Business Reports</Text>
+                    <Feather name="chevron-right" size={20} color="#FFF" />
+                </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        style={[styles.actionCard, { backgroundColor: isDark ? '#1E293B' : '#ECFDF5' }]}
-                        onPress={() => navigation.navigate('Sell')}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: '#10B981' }]}>
-                            <Text style={styles.actionIconText}>$</Text>
-                        </View>
-                        <Text style={[styles.actionLabel, { color: colors.text }]}>Record Sale</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={[styles.actionCard, { backgroundColor: isDark ? '#1E293B' : '#FFF7ED' }]}
-                        onPress={() => navigation.navigate('Logistics')}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: '#F97316' }]}>
-                            <Text style={styles.actionIconText}>📦</Text>
-                        </View>
-                        <Text style={[styles.actionLabel, { color: colors.text }]}>Log Shipment</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <Text style={[styles.sectionHeader, { color: colors.text }]}>Inventory Performance</Text>
-                <Card style={styles.statsCard}>
-                    <View style={styles.statLine}>
-                        <View style={styles.statInfo}>
-                            <Text style={[styles.statLabelMain, { color: colors.text }]}>Inventory Asset Value</Text>
-                            <Text style={[styles.statSubText, { color: colors.textMuted }]}>Total stock value at cost</Text>
-                        </View>
-                        <Text style={[styles.statBigValue, { color: colors.primary }]}>SSP {stats.inventoryValueAtCost.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.statLine}>
-                        <View style={styles.statInfo}>
-                            <Text style={[styles.statLabelMain, { color: colors.text }]}>Available Cash Flow</Text>
-                            <Text style={[styles.statSubText, { color: colors.textMuted }]}>Actual liquid cash (estimated)</Text>
-                        </View>
-                        <Text style={[styles.statBigValue, { color: stats.availableCash >= 0 ? colors.success : colors.error }]}>SSP {stats.availableCash.toLocaleString()}</Text>
-                    </View>
-                </Card>
-
-                {products.length > 0 && <Text style={[styles.sectionHeader, { color: colors.text }]}>Product Inventory</Text>}
-                {products.sort((a, b) => b.id - a.id).map(product => {
-                    const hasStock = product.quantity > 0;
-                    return (
-                    <Card 
-                        key={product.id} 
-                        style={[
-                            styles.recentProductCard, 
-                            hasStock && { borderColor: colors.success + '40', borderWidth: 1 }
-                        ]}
-                        onPress={() => navigation.navigate('ProductDetails', { productId: product.id })}
-                    >
-                        <View style={[styles.recentProductIcon, { backgroundColor: isDark ? colors.primaryLight : '#F3E8FF', opacity: hasStock ? 1 : 0.5 }]}>
-                            <Text style={[styles.recentProductIconText, { color: colors.primary }]}>{product.name[0]}</Text>
-                        </View>
-                        <View style={{ flex: 1, opacity: hasStock ? 1 : 0.6 }}>
-                            <Text style={[styles.recentProductName, { color: colors.text }]}>{product.name}</Text>
-                            {hasStock && (
-                                <View style={[styles.stockBadge, { backgroundColor: colors.success + '20' }]}>
-                                    <Text style={[styles.stockBadgeText, { color: colors.success }]}>IN STOCK</Text>
-                                </View>
-                            )}
-                        </View>
-                        <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={[styles.recentProductPrice, { color: colors.primary }]}>SSP {product.sell_price.toFixed(0)}</Text>
-                            <Text style={[styles.recentProductQty, { color: product.quantity <= 10 ? colors.error : colors.textMuted }]}>
-                                {product.quantity} left
-                            </Text>
-                        </View>
-                    </Card>
-                );})}
-
-                <View style={{ height: 120 }} />
+                <View style={{ height: 100 }} />
             </ScrollView>
 
-            <QuickProductModal 
-                visible={productModalVisible} 
-                onClose={() => setProductModalVisible(false)} 
-                onAdd={addProduct} 
-            />
+            <QuickProductModal visible={productModalVisible} onClose={() => setProductModalVisible(false)} onAdd={addProduct} />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { 
-        paddingHorizontal: 24, 
-        paddingTop: 60, 
-        paddingBottom: 20, 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-    },
-    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    headerAccent: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, marginBottom: 2 },
-    title: { fontSize: 26, fontWeight: '900', letterSpacing: -1 },
-    themeToggle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-    themeToggleIcon: { fontSize: 18 },
-    userProfile: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-    userInitial: { fontWeight: 'bold' },
-
+    header: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerAccent: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
+    title: { fontSize: 24, fontWeight: '900' },
+    settingsBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
     scrollContent: { padding: 24 },
-    heroCard: { backgroundColor: '#7C3AED', padding: 24, borderRadius: 24, marginBottom: 32 },
-    heroHeader: { marginBottom: 16 },
-    heroLabel: { fontSize: 9, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 1.5 },
-    heroRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    heroStat: { flex: 1 },
-    heroSubLabel: { fontSize: 8, fontWeight: '800', color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
-    heroValue: { fontSize: 22, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-    heroDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 16 },
-    heroBadgeRow: { flexDirection: 'row', gap: 8, marginTop: 20 },
-    heroBadge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-    heroBadgeText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
-
-    sectionHeader: { fontSize: 13, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 16 },
-    
+    heroCard: { backgroundColor: '#7C3AED', padding: 24, borderRadius: 24, marginBottom: 20 },
+    heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+    heroValue: { color: '#FFF', fontSize: 32, fontWeight: '900', marginVertical: 12 },
+    heroStats: { flexDirection: 'row', alignItems: 'center', gap: 20, marginTop: 8 },
+    heroSubLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 8, fontWeight: '900' },
+    heroSubValue: { color: '#FFF', fontSize: 14, fontWeight: '800', marginTop: 2 },
+    heroDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.2)' },
+    alertBar: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
+    alertText: { fontSize: 13, fontWeight: '700' },
     actionRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
-    actionCard: { flex: 1, padding: 16, borderRadius: 20, alignItems: 'center' },
-    actionIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-    actionIconText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
-    actionLabel: { fontSize: 10, fontWeight: '900', textAlign: 'center' },
-
-    gridRow: { flexDirection: 'row', gap: 16, marginBottom: 24 },
-    gridCard: { flex: 1, padding: 20, borderRadius: 20 },
-    gridLabel: { fontSize: 11, fontWeight: '800', marginBottom: 12 },
-    gridValue: { fontSize: 16, fontWeight: '900' },
-    gridCaption: { fontSize: 10, marginTop: 4, fontWeight: '600' },
-
-    statsCard: { padding: 24, borderRadius: 24, marginBottom: 32 },
-    statLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-    statInfo: { flex: 1 },
-    statLabelMain: { fontSize: 14, fontWeight: '800' },
-    statSubText: { fontSize: 11, marginTop: 2 },
-    statBigValue: { fontSize: 20, fontWeight: '900' },
-
-    recentProductCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, marginBottom: 12, gap: 16 },
-    recentProductIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    recentProductIconText: { fontWeight: '900', fontSize: 16 },
-    recentProductName: { fontSize: 14, fontWeight: '700' },
-    recentProductPrice: { fontSize: 13, fontWeight: '900' },
-    recentProductQty: { fontSize: 10, marginTop: 2, fontWeight: '700' },
-    stockBadge: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
-    stockBadgeText: { fontSize: 8, fontWeight: '900' },
-    chartCard: {
-        padding: 16,
-        borderRadius: 24,
-        marginBottom: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
-    },
-    chartHeader: {
-        width: '100%',
-        paddingHorizontal: 8,
-        marginBottom: 16,
-    },
-    chartTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        letterSpacing: -0.5,
-    },
-    chartSub: {
-        fontSize: 11,
-        fontWeight: '600',
-        marginTop: 2,
-    }
+    actionBtn: { flex: 1, padding: 12, borderRadius: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.03)' },
+    iconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    actionLabel: { fontSize: 11, fontWeight: '800' },
+    sectionTitle: { fontSize: 14, fontWeight: '900', textTransform: 'uppercase', marginBottom: 16 },
+    chartCard: { padding: 12, borderRadius: 20, marginBottom: 16, alignItems: 'center' },
+    reportsLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderRadius: 16, marginTop: 8 },
+    reportsLinkText: { color: '#FFF', fontSize: 15, fontWeight: '800' }
 });

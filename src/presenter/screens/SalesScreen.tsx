@@ -1,32 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, Platform, ScrollView } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, Modal, Alert, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../domain/useStore';
 import { Sale } from '../../domain/models';
-import { Theme } from '../../core/theme';
 import { Card } from '../components/Card';
 import { AppButton } from '../components/AppButton';
 import { FormLayout } from '../components/FormLayout';
 import { ProductPicker } from '../components/ProductPicker';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
+import { ListItemSkeleton } from '../components/Skeletons';
+import { PDFService } from '../../data/PDFService';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export function SalesScreen() {
-    const { sales, products, addSale, deleteSale, refreshAll } = useStore();
+    const { sales, products, addSale, deleteSale, loading } = useStore();
     const { colors, isDark } = useAppTheme();
-    const [modalVisible, setModalVisible] = useState(false);
     
+    const [modalVisible, setModalVisible] = useState(false);
     const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
     const [quantity, setQuantity] = useState('');
     const [sellPriceOverride, setSellPriceOverride] = useState('');
     const [dateInput, setDateInput] = useState(() => new Date().toISOString().split('T')[0]);
 
+    // Date filtering
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return d.toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+    const filteredSales = useMemo(() => {
+        return sales.filter(s => {
+            const saleDate = s.date.split('T')[0];
+            return saleDate >= startDate && saleDate <= endDate;
+        });
+    }, [sales, startDate, endDate]);
 
     const handleProductSelect = (id: number) => {
         const p = products.find(x => x.id === id);
         setSelectedProductId(id);
-        if (p) {
-            setSellPriceOverride(p.sell_price.toString());
-        }
+        if (p) setSellPriceOverride(p.sell_price.toString());
     };
 
     const handleSave = async () => {
@@ -46,132 +62,130 @@ export function SalesScreen() {
             setModalVisible(false);
             setQuantity('');
             setSelectedProductId(null);
-            setDateInput(new Date().toISOString().split('T')[0]);
             Alert.alert('Success', 'Sale recorded successfully');
         } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to record sale');
         }
     };
 
+    const handleGenerateInvoice = async (sale: Sale) => {
+        try {
+            const settingsStr = await AsyncStorage.getItem('app_settings');
+            const settings = settingsStr ? JSON.parse(settingsStr) : { storeName: 'My Store', currency: 'SSP' };
+            await PDFService.generateInvoice(sale, settings);
+        } catch (e) {
+            Alert.alert("Error", "Failed to generate PDF");
+        }
+    };
+
     const renderItem = ({ item }: { item: Sale }) => (
-        <Card>
+        <Card style={styles.saleCard}>
             <View style={styles.cardHeader}>
-                <Text style={[styles.productName, { color: colors.text }]}>{item.product_name}</Text>
-                <View style={[styles.badge, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5' }]}>
-                    <Text style={[styles.badgeText, { color: colors.success }]}>+SSP {(item.sell_price * item.quantity).toFixed(2)}</Text>
+                <View style={{ flex: 1 }}>
+                    <Text style={[styles.productName, { color: colors.text }]}>{item.product_name}</Text>
+                    <Text style={[styles.dateText, { color: colors.textMuted }]}>{new Date(item.date).toLocaleString()}</Text>
+                </View>
+                <View style={styles.priceContainer}>
+                    <Text style={[styles.totalPrice, { color: colors.primary }]}>SSP {(item.sell_price * item.quantity).toLocaleString()}</Text>
+                    <Text style={[styles.qtyText, { color: colors.textSecondary }]}>{item.quantity} units x {item.sell_price}</Text>
                 </View>
             </View>
-            <Text style={[styles.saleInfo, { color: colors.textSecondary }]}>
-                {item.quantity} units · SSP {item.sell_price} each
-            </Text>
-            <Text style={[styles.dateInfo, { color: colors.textMuted }]}>{new Date(item.date).toLocaleDateString()} · {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-            <View style={[styles.cardActions, { borderTopColor: colors.border }]}>
-                <AppButton 
-                    title="Delete Transaction" 
-                    type="ghost" 
-                    onPress={() => handleDelete(item.id)} 
-                    style={styles.actionBtn}
-                    textStyle={{ fontSize: 13, color: colors.error }}
-                />
+            <View style={styles.actions}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => handleGenerateInvoice(item)}>
+                    <Feather name="file-text" size={14} color={colors.primary} />
+                    <Text style={[styles.actionText, { color: colors.primary }]}>Invoice</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => deleteSale(item.id)}>
+                    <Feather name="trash-2" size={14} color={colors.error} />
+                    <Text style={[styles.actionText, { color: colors.error }]}>Delete</Text>
+                </TouchableOpacity>
             </View>
         </Card>
     );
-
-    const handleDelete = (id: number) => {
-        const performDelete = async () => {
-            await deleteSale(id);
-        };
-
-        if (Platform.OS === 'web') {
-            if (window.confirm('Delete this transaction?')) {
-                performDelete();
-            }
-        } else {
-            Alert.alert('Confirm Delete', 'Delete this transaction?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: performDelete },
-            ]);
-        }
-    };
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <View style={styles.header}>
                 <View>
-                    <Text style={[styles.headerAccent, { color: colors.primary }]}>REVENUE & GROWTH</Text>
+                    <Text style={[styles.headerAccent, { color: colors.primary }]}>REVENUE</Text>
                     <Text style={[styles.title, { color: colors.text }]}>Sales Ledger</Text>
-                    <Text style={[styles.subtitle, { color: colors.textMuted }]}>{sales.length} Transactions</Text>
                 </View>
-                <AppButton 
-                    title="New Sale" 
-                    onPress={() => setModalVisible(true)}
-                    style={{ borderRadius: 30, paddingHorizontal: 20 }}
-                />
+                <AppButton title="+ New Sale" onPress={() => setModalVisible(true)} style={styles.addButton} />
             </View>
 
-            <FlatList
-                data={sales}
-                keyExtractor={s => s.id.toString()}
-                renderItem={renderItem}
-                contentContainerStyle={styles.list}
-                ListEmptyComponent={
-                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>Recording history...</Text>
-                }
-            />
-            <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+            <View style={styles.dateFilter}>
+                <View style={styles.dateInputWrapper}>
+                    <Text style={[styles.filterLabel, { color: colors.textMuted }]}>FROM</Text>
+                    <TextInput 
+                        style={[styles.dateInput, { borderColor: colors.border, color: colors.text }]} 
+                        value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD"
+                    />
+                </View>
+                <View style={styles.dateInputWrapper}>
+                    <Text style={[styles.filterLabel, { color: colors.textMuted }]}>TO</Text>
+                    <TextInput 
+                        style={[styles.dateInput, { borderColor: colors.border, color: colors.text }]} 
+                        value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD"
+                    />
+                </View>
+            </View>
+
+            {loading ? (
+                <View style={{ padding: 24 }}>
+                    <ListItemSkeleton />
+                    <ListItemSkeleton />
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredSales}
+                    keyExtractor={s => s.id.toString()}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.list}
+                    ListEmptyComponent={
+                        <EmptyState 
+                            icon="dollar-sign" 
+                            title="No Sales" 
+                            body="Transactions for the selected date range will appear here."
+                            ctaLabel="Record Sale"
+                            onCtaPress={() => setModalVisible(true)}
+                        />
+                    }
+                />
+            )}
+
+            <Modal visible={modalVisible} animationType="slide">
+                <FormLayout contentContainerStyle={[styles.modalContent, { backgroundColor: colors.surface }]}>
                     <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>New Sale</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setModalVisible(false)} />
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>New Transaction</Text>
+                        <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={{ color: colors.primary, fontWeight: '700' }}>Cancel</Text></TouchableOpacity>
                     </View>
 
-                    <ProductPicker 
-                        value={selectedProductId} 
-                        onSelect={handleProductSelect} 
-                        products={products} 
-                    />
+                    <ProductPicker value={selectedProductId} onSelect={handleProductSelect} products={products} />
 
-                    <View style={styles.form}>
-                        <View style={styles.inputGroup}>
+                    <View style={[styles.row, { marginTop: 12 }]}>
+                        <View style={{ flex: 1 }}>
                             <Text style={[styles.label, { color: colors.textMuted }]}>QUANTITY</Text>
                             <TextInput 
-                                style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                placeholder="0" 
-                                placeholderTextColor={colors.textMuted}
-                                value={quantity} 
-                                onChangeText={setQuantity} 
-                                keyboardType="numeric" 
+                                style={[styles.input, { borderColor: colors.border, color: colors.text }]} 
+                                placeholder="0" value={quantity} onChangeText={setQuantity} keyboardType="numeric"
                             />
                         </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.label, { color: colors.textMuted }]}>PRICE PER UNIT</Text>
                             <TextInput 
-                                style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                placeholder="YYYY-MM-DD" 
-                                placeholderTextColor={colors.textMuted}
-                                value={dateInput} 
-                                onChangeText={setDateInput} 
-                            />
-                        </View>
-                    </View>
-                    <View style={styles.form}>
-                        <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: colors.textMuted }]}>UNIT PRICE (SSP)</Text>
-                            <TextInput 
-                                style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} 
-                                placeholder="0.00" 
-                                placeholderTextColor={colors.textMuted}
-                                value={sellPriceOverride} 
-                                onChangeText={setSellPriceOverride} 
-                                keyboardType="numeric" 
+                                style={[styles.input, { borderColor: colors.border, color: colors.text }]} 
+                                placeholder="0.00" value={sellPriceOverride} onChangeText={setSellPriceOverride} keyboardType="numeric"
                             />
                         </View>
                     </View>
 
-                    <View style={styles.modalActions}>
-                        <AppButton title="Cancel" type="outline" style={{ flex: 1 }} onPress={() => setModalVisible(false)} />
-                        <AppButton title="Confirm Sale" style={{ flex: 2 }} onPress={handleSave} />
-                    </View>
+                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE</Text>
+                    <TextInput 
+                        style={[styles.input, { borderColor: colors.border, color: colors.text }]} 
+                        value={dateInput} onChangeText={setDateInput} placeholder="YYYY-MM-DD"
+                    />
+
+                    <AppButton title="Confirm Transaction" onPress={handleSave} style={{ marginTop: 20 }} />
                 </FormLayout>
             </Modal>
         </SafeAreaView>
@@ -180,40 +194,29 @@ export function SalesScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: { 
-        paddingHorizontal: 24, 
-        paddingTop: 40,
-        paddingBottom: 24,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end'
-    },
+    header: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerAccent: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
-    title: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-    subtitle: { fontSize: 13, marginTop: 4 },
-    list: { paddingHorizontal: 20, paddingBottom: 100 },
-    
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    productName: { fontSize: 16, fontWeight: 'bold', flex: 1 },
-    badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    badgeText: { fontSize: 12, fontWeight: 'bold' },
-    saleInfo: { marginBottom: 4, fontSize: 14, fontWeight: '600' },
-    dateInfo: { fontSize: 11, fontWeight: '600' },
-    cardActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 15, borderTopWidth: 1, paddingTop: 10 },
-    actionBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20 },
-    emptyText: { textAlign: 'center', marginTop: 100, fontWeight: '600' },
-
-    modalContainer: { padding: 24, paddingTop: 60 },
+    title: { fontSize: 26, fontWeight: '900' },
+    addButton: { borderRadius: 30, paddingHorizontal: 16 },
+    dateFilter: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, marginBottom: 20 },
+    dateInputWrapper: { flex: 1 },
+    filterLabel: { fontSize: 9, fontWeight: '900', marginBottom: 4 },
+    dateInput: { height: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, fontSize: 13 },
+    list: { paddingHorizontal: 24, paddingBottom: 100 },
+    saleCard: { marginBottom: 12, padding: 16 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+    productName: { fontSize: 15, fontWeight: 'bold' },
+    dateText: { fontSize: 11, marginTop: 2 },
+    priceContainer: { alignItems: 'flex-end' },
+    totalPrice: { fontSize: 16, fontWeight: '900' },
+    qtyText: { fontSize: 11, marginTop: 2 },
+    actions: { flexDirection: 'row', marginTop: 12, gap: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    actionText: { fontSize: 12, fontWeight: '700' },
+    modalContent: { padding: 24, paddingTop: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    modalTitle: { fontSize: 24, fontWeight: '900' },
-    label: { fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
-    form: { flexDirection: 'row', gap: 16, marginBottom: 24 },
-    inputGroup: { flex: 1 },
-    input: { 
-        padding: 16, 
-        borderRadius: 12, 
-        borderWidth: 1, 
-        fontSize: 16,
-    },
-    modalActions: { flexDirection: 'row', gap: 16, paddingBottom: 20 }
+    modalTitle: { fontSize: 20, fontWeight: '900' },
+    label: { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+    input: { height: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, marginBottom: 12 },
+    row: { flexDirection: 'row', gap: 12 },
 });
