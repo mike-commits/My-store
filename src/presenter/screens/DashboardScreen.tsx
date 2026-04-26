@@ -67,12 +67,12 @@ export function DashboardScreen() {
                 {
                     data: hasData ? dailyRevenue : [0,0,0,0,0,0,0],
                     color: (opacity = 1) => hexToRgba(colors.primary, opacity),
-                    strokeWidth: 3
+                    strokeWidth: 4,
                 },
                 {
                     data: hasData ? dailyProfit : [0,0,0,0,0,0,0],
                     color: (opacity = 1) => hexToRgba(colors.success, opacity),
-                    strokeWidth: 2
+                    strokeWidth: 2,
                 }
             ],
             legend: ["Revenue", "Profit"]
@@ -80,21 +80,28 @@ export function DashboardScreen() {
     }, [sales, colors.primary, colors.success]);
 
     const productPieData = useMemo(() => {
+        // Professional Dashboard Palette
+        const chartColors = [
+            '#8B5CF6', // Violet
+            '#10B981', // Emerald
+            '#3B82F6', // Blue
+            '#F59E0B', // Amber
+            '#EC4899', // Pink
+            '#06B6D4', // Cyan
+        ];
+
         const data = products
             .map((p, idx) => {
                 const revenue = sales
                     .filter(s => s.product_id === p.id)
                     .reduce((sum, s) => sum + (s.sell_price * s.quantity), 0);
                 
-                // Predefined nice colors
-                const chartColors = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#6366F1'];
-                
                 return {
-                    name: p.name.length > 10 ? p.name.substring(0, 10) + '...' : p.name,
+                    name: p.name.length > 12 ? p.name.substring(0, 12) + '..' : p.name,
                     revenue,
                     color: chartColors[idx % chartColors.length],
-                    legendFontColor: colors.text,
-                    legendFontSize: 10
+                    legendFontColor: colors.textSecondary,
+                    legendFontSize: 11
                 };
             })
             .filter(p => p.revenue > 0)
@@ -102,22 +109,34 @@ export function DashboardScreen() {
             .slice(0, 5);
         
         return data;
-    }, [products, sales, colors.text]);
+    }, [products, sales, colors.textSecondary]);
 
     const chartConfig = {
         backgroundGradientFrom: colors.surface,
         backgroundGradientTo: colors.surface,
+        fillShadowGradientFrom: colors.primary,
+        fillShadowGradientTo: colors.surface,
+        fillShadowGradientFromOpacity: 0.2,
+        fillShadowGradientToOpacity: 0,
         decimalPlaces: 0,
-        color: (opacity = 1) => hexToRgba(colors.text, opacity),
-        labelColor: (opacity = 1) => hexToRgba(colors.textMuted, opacity),
+        color: (opacity = 1) => hexToRgba(colors.primary, opacity),
+        labelColor: (opacity = 1) => colors.textMuted,
         style: {
-            borderRadius: 16
+            borderRadius: 24,
         },
         propsForDots: {
-            r: "4",
-            strokeWidth: "2",
-            stroke: colors.primary
-        }
+            r: "0", // Hide dots for a cleaner look
+        },
+        propsForBackgroundLines: {
+            strokeDasharray: "5", // Dashed lines
+            stroke: colors.border,
+            strokeWidth: 1,
+        },
+        propsForLabels: {
+            fontSize: 10,
+            fontWeight: '600'
+        },
+        useShadowColorFromDataset: false,
     };
 
     return (
@@ -189,18 +208,29 @@ export function DashboardScreen() {
                     </Card>
                 </View>
 
-                <Text style={[styles.sectionHeader, { color: colors.text }]}>Revenue & Profit Trend</Text>
-                <Card style={styles.chartCard}>
+                <Text style={[styles.sectionHeader, { color: colors.text, marginTop: 12 }]}>Performance Analytics</Text>
+                <Card style={[styles.chartCard, { paddingVertical: 24 }]}>
+                    <View style={styles.chartHeader}>
+                        <Text style={[styles.chartTitle, { color: colors.text }]}>Revenue vs Profit</Text>
+                        <Text style={[styles.chartSub, { color: colors.textMuted }]}>Last 7 Days (SSP)</Text>
+                    </View>
                     {chartWidth > 0 && (
                         <LineChart
                             data={salesTrendData}
-                            width={chartWidth - 32}
+                            width={chartWidth - 16}
                             height={220}
                             chartConfig={chartConfig}
                             bezier
+                            withVerticalLines={false}
+                            withHorizontalLines={true}
+                            withInnerLines={true}
+                            withDots={false}
+                            withShadow={true}
+                            segments={4}
+                            fromZero={true}
                             style={{
                                 marginVertical: 8,
-                                borderRadius: 16
+                                marginLeft: -16, // Adjust for padding
                             }}
                         />
                     )}
@@ -208,17 +238,20 @@ export function DashboardScreen() {
 
                 {productPieData.length > 0 && (
                     <>
-                        <Text style={[styles.sectionHeader, { color: colors.text }]}>Revenue by Product</Text>
-                        <Card style={styles.chartCard}>
+                        <Card style={[styles.chartCard, { paddingVertical: 24 }]}>
+                            <View style={styles.chartHeader}>
+                                <Text style={[styles.chartTitle, { color: colors.text }]}>Revenue Distribution</Text>
+                                <Text style={[styles.chartSub, { color: colors.textMuted }]}>Top 5 Products</Text>
+                            </View>
                             {chartWidth > 0 && (
                                 <PieChart
                                     data={productPieData}
-                                    width={chartWidth - 32}
-                                    height={200}
+                                    width={chartWidth}
+                                    height={180}
                                     chartConfig={chartConfig}
                                     accessor={"revenue"}
                                     backgroundColor={"transparent"}
-                                    paddingLeft={"15"}
+                                    paddingLeft={"0"}
                                     center={[10, 0]}
                                     absolute
                                 />
@@ -385,8 +418,25 @@ const styles = StyleSheet.create({
     chartCard: {
         padding: 16,
         borderRadius: 24,
-        marginBottom: 32,
+        marginBottom: 24,
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+    },
+    chartHeader: {
+        width: '100%',
+        paddingHorizontal: 8,
+        marginBottom: 16,
+    },
+    chartTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+        letterSpacing: -0.5,
+    },
+    chartSub: {
+        fontSize: 11,
+        fontWeight: '600',
+        marginTop: 2,
     }
 });
