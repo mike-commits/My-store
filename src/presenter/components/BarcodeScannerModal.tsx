@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Feather } from '@expo/vector-icons';
 import { AppButton } from './AppButton';
 
@@ -11,34 +11,33 @@ interface BarcodeScannerModalProps {
 }
 
 export function BarcodeScannerModal({ visible, onClose, onScan }: BarcodeScannerModalProps) {
-    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+    const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
 
     useEffect(() => {
-        const getBarCodeScannerPermissions = async () => {
-            const { status } = await BarCodeScanner.requestPermissionsAsync();
-            setHasPermission(status === 'granted');
-        };
-
+        if (visible && (!permission || !permission.granted)) {
+            requestPermission();
+        }
         if (visible) {
-            getBarCodeScannerPermissions();
             setScanned(false);
         }
-    }, [visible]);
+    }, [visible, permission]);
 
-    const handleBarCodeScanned = ({ type, data }: { type: string, data: string }) => {
+    const handleBarCodeScanned = ({ data }: { data: string }) => {
         setScanned(true);
         onScan(data);
     };
 
-    if (hasPermission === null) {
+    if (!permission) {
         return null;
     }
-    if (hasPermission === false) {
+
+    if (!permission.granted) {
         return (
             <Modal visible={visible} animationType="fade">
                 <View style={styles.container}>
                     <Text style={styles.errorText}>No access to camera</Text>
+                    <AppButton title="Grant Permission" onPress={requestPermission} style={{ marginBottom: 10 }} />
                     <AppButton title="Close" onPress={onClose} />
                 </View>
             </Modal>
@@ -48,9 +47,12 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: BarcodeScanner
     return (
         <Modal visible={visible} animationType="slide">
             <View style={styles.container}>
-                <BarCodeScanner
-                    onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+                <CameraView
                     style={StyleSheet.absoluteFillObject}
+                    onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                    barcodeScannerSettings={{
+                        barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39", "upc_a", "upc_e"],
+                    }}
                 />
                 <View style={styles.overlay}>
                     <View style={styles.scanArea} />
@@ -93,6 +95,7 @@ const styles = StyleSheet.create({
     errorText: {
         color: '#FFF',
         marginBottom: 20,
+        textAlign: 'center',
     },
     closeBtn: {
         position: 'absolute',

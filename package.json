@@ -35,7 +35,7 @@
     "react-native-svg": "15.8.0",
     "react-native-web": "~0.19.13",
     "zod": "^3.23.8",
-    "expo-camera": "~13.4.4"
+    "expo-camera": "~16.1.0"
   },
   "devDependencies": {
     "@types/react": "~18.3.12",

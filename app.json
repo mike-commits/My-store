@@ -34,7 +34,6 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-barcode-scanner",
       "@react-native-community/datetimepicker"
     ],
     "extra": {
