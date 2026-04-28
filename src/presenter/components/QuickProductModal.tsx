@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TextInput, Alert, TouchableOpacity } fro
 import { AppButton } from './AppButton';
 import { FormLayout } from './FormLayout';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
+import { ProductSchema } from '../../domain/validation';
 
 interface QuickProductModalProps {
     visible: boolean;
@@ -33,7 +34,7 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
                 finalQuantity = finalQuantity * 12;
             }
 
-            await onAdd({
+            const productData = {
                 name,
                 category: 'Others',
                 buy_price: finalBuyPrice,
@@ -41,7 +42,15 @@ export function QuickProductModal({ visible, onClose, onAdd }: QuickProductModal
                 quantity: finalQuantity,
                 date: new Date(dateInput).toISOString(),
                 notes: 'Quick manual add'
-            });
+            };
+
+            const result = ProductSchema.safeParse(productData);
+            if (!result.success) {
+                Alert.alert('Validation Error', result.error.issues[0]?.message || 'Invalid data');
+                return;
+            }
+
+            await onAdd(productData);
             onClose();
             setName('');
             setBuyPrice('');
@@ -136,5 +145,6 @@ const styles = StyleSheet.create({
         fontWeight: '900'
     },
     input: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16, marginBottom: 20 },
-    row: { flexDirection: 'row', gap: 16 }
+    row: { flexDirection: 'row', gap: 16 },
+    unitToggle: { flexDirection: 'row', borderRadius: 8, padding: 2 }
 });

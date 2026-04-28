@@ -1,60 +1,56 @@
-import * as SQLite from 'expo-sqlite';
-import { Product, Sale } from '../domain/models';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Product } from '../domain/models';
+
+const PRODUCT_CACHE_KEY = '@product_cache';
+const SYNC_QUEUE_KEY = '@sync_queue';
 
 export class OfflineService {
-    private dbPromise: Promise<SQLite.SQLiteDatabase>;
-
-    constructor() {
-        this.dbPromise = SQLite.openDatabaseAsync('store_offline.db');
-        this.init();
-    }
-
-    private async init() {
-        const db = await this.dbPromise;
-        await db.execAsync(`
-            CREATE TABLE IF NOT EXISTS product_cache (
-                id INTEGER PRIMARY KEY,
-                data TEXT NOT NULL,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS sync_queue (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                action TEXT NOT NULL,
-                table_name TEXT NOT NULL,
-                data TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-    }
-
     async cacheProducts(products: Product[]) {
-        const db = await this.dbPromise;
-        await db.runAsync('DELETE FROM product_cache');
-        for (const p of products) {
-            await db.runAsync('INSERT INTO product_cache (id, data) VALUES (?, ?)', [p.id, JSON.stringify(p)]);
+        try {
+            await AsyncStorage.setItem(PRODUCT_CACHE_KEY, JSON.stringify(products));
+        } catch (e) {
+            console.error('Failed to cache products', e);
         }
     }
 
     async getCachedProducts(): Promise<Product[]> {
-        const db = await this.dbPromise;
-        const rows = await db.getAllAsync('SELECT data FROM product_cache') as any[];
-        return rows.map(r => JSON.parse(r.data));
+        try {
+            const data = await AsyncStorage.getItem(PRODUCT_CACHE_KEY);
+            return data ? JSON.parse(data) : [];
+        } catch {
+            return [];
+        }
     }
 
     async addToSyncQueue(action: 'INSERT' | 'UPDATE' | 'DELETE', tableName: string, data: any) {
-        const db = await this.dbPromise;
-        await db.runAsync('INSERT INTO sync_queue (action, table_name, data) VALUES (?, ?, ?)', 
-            [action, tableName, JSON.stringify(data)]);
+        try {
+            const queueStr = await AsyncStorage.getItem(SYNC_QUEUE_KEY);
+            const queue = queueStr ? JSON.parse(queueStr) : [];
+            queue.push({ id: Date.now(), action, table_name: tableName, data, created_at: new Date().toISOString() });
+            await AsyncStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+        } catch (e) {
+            console.error('Failed to add to sync queue', e);
+        }
     }
 
     async getSyncQueue() {
-        const db = await this.dbPromise;
-        return await db.getAllAsync('SELECT * FROM sync_queue ORDER BY created_at ASC');
+        try {
+            const queueStr = await AsyncStorage.getItem(SYNC_QUEUE_KEY);
+            return queueStr ? JSON.parse(queueStr) : [];
+        } catch {
+            return [];
+        }
     }
 
     async clearQueueItem(id: number) {
-        const db = await this.dbPromise;
-        await db.runAsync('DELETE FROM sync_queue WHERE id = ?', [id]);
+        try {
+            const queueStr = await AsyncStorage.getItem(SYNC_QUEUE_KEY);
+            let queue = queueStr ? JSON.parse(queueStr) : [];
+            queue = queue.filter((item: any) => item.id !== id);
+            await AsyncStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+        } catch (e) {
+            console.error('Failed to clear queue item', e);
+        }
     }
 }
 

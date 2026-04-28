@@ -7,7 +7,8 @@ export const ProductSchema = z.object({
     sell_price: z.number().positive("Sell price must be positive"),
     quantity: z.number().int().min(0, "Quantity cannot be negative"),
     notes: z.string().optional(),
-    image_url: z.string().url().optional(),
+    image_url: z.union([z.string().url(), z.literal(''), z.undefined()]).optional(),
+    date: z.string().optional(),
 });
 
 export const SaleSchema = z.object({

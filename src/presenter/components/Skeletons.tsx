@@ -4,25 +4,25 @@ import { useAppTheme } from '../../core/contexts/ThemeContext';
 
 interface SkeletonProps {
     width?: number | string;
-    height: number;
+    height?: number | string;
     borderRadius?: number;
     style?: any;
 }
 
-export function Skeleton({ width = '100%', height, borderRadius = 8, style }: SkeletonProps) {
+export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonProps) {
     const { colors, isDark } = useAppTheme();
-    const pulseAnim = new Animated.Value(0.3);
+    const animatedValue = new Animated.Value(0);
 
     useEffect(() => {
         Animated.loop(
             Animated.sequence([
-                Animated.timing(pulseAnim, {
-                    toValue: 0.7,
+                Animated.timing(animatedValue, {
+                    toValue: 1,
                     duration: 1000,
                     useNativeDriver: true,
                 }),
-                Animated.timing(pulseAnim, {
-                    toValue: 0.3,
+                Animated.timing(animatedValue, {
+                    toValue: 0,
                     duration: 1000,
                     useNativeDriver: true,
                 }),
@@ -30,7 +30,10 @@ export function Skeleton({ width = '100%', height, borderRadius = 8, style }: Sk
         ).start();
     }, []);
 
-    const backgroundColor = isDark ? '#1E293B' : '#E2E8F0';
+    const opacity = animatedValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.3, 0.7],
+    });
 
     return (
         <Animated.View
@@ -39,8 +42,8 @@ export function Skeleton({ width = '100%', height, borderRadius = 8, style }: Sk
                     width,
                     height,
                     borderRadius,
-                    backgroundColor,
-                    opacity: pulseAnim,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    opacity,
                 },
                 style,
             ]}
@@ -48,47 +51,53 @@ export function Skeleton({ width = '100%', height, borderRadius = 8, style }: Sk
     );
 }
 
-export function CardSkeleton() {
+export function ListItemSkeleton() {
+    const { colors } = useAppTheme();
     return (
-        <View style={styles.card}>
-            <Skeleton height={20} width="60%" style={{ marginBottom: 12 }} />
-            <Skeleton height={40} width="80%" style={{ marginBottom: 16 }} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Skeleton height={24} width={80} borderRadius={6} />
-                <Skeleton height={24} width={80} borderRadius={6} />
+        <View style={[styles.listContainer, { backgroundColor: colors.surface }]}>
+            <View style={styles.listRow}>
+                <View style={styles.textCol}>
+                    <Skeleton width="60%" height={16} style={{ marginBottom: 8 }} />
+                    <Skeleton width="40%" height={12} />
+                </View>
+                <Skeleton width={80} height={20} />
             </View>
         </View>
     );
 }
 
-export function ListItemSkeleton() {
+export function CardSkeleton() {
+    const { colors } = useAppTheme();
     return (
-        <View style={styles.listItem}>
-            <Skeleton height={40} width={40} borderRadius={12} />
-            <View style={{ flex: 1, gap: 6 }}>
-                <Skeleton height={16} width="70%" />
-                <Skeleton height={12} width="40%" />
-            </View>
-            <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                <Skeleton height={16} width={60} />
-                <Skeleton height={12} width={40} />
+        <View style={[styles.cardContainer, { backgroundColor: colors.surface }]}>
+            <Skeleton width="40%" height={12} style={{ marginBottom: 12 }} />
+            <Skeleton width="70%" height={24} style={{ marginBottom: 24 }} />
+            <View style={styles.listRow}>
+                <Skeleton width="30%" height={14} />
+                <Skeleton width="30%" height={14} />
             </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    card: {
-        padding: 24,
-        borderRadius: 24,
-        backgroundColor: 'rgba(0,0,0,0.02)',
-        marginBottom: 20,
-    },
-    listItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    listContainer: {
         padding: 16,
-        gap: 16,
+        borderRadius: 12,
         marginBottom: 12,
+    },
+    listRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    textCol: {
+        flex: 1,
+        marginRight: 16,
+    },
+    cardContainer: {
+        padding: 24,
+        borderRadius: 20,
+        marginBottom: 16,
     },
 });

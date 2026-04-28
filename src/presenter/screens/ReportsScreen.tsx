@@ -1,496 +1,426 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Modal, TextInput, Alert, TouchableOpacity, Platform } from 'react-native';
+/**
+ * src/presenter/screens/ReportsScreen.tsx
+ * Full rewrite — date range control, revenue/expense summary cards,
+ * simple SVG bar chart (uses react-native-svg, already installed),
+ * PDF export via expo-print + expo-sharing.
+ * victory-native is NOT yet installed so we use a lightweight custom chart.
+ */
+
+import React, { useState, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Modal, TextInput, Alert, Platform, RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useStore } from '../../domain/useStore';
-import { Theme } from '../../core/theme';
-import { Card } from '../components/Card';
-import { AppButton } from '../components/AppButton';
-import { FormLayout } from '../components/FormLayout';
-import { generatePerformancePDF } from '../../core/utils/pdfGenerator';
+import { Feather } from '@expo/vector-icons';
+import Svg, { Rect, Text as SvgText } from 'react-native-svg';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+
+import { useStore }   from '../../domain/useStore';
 import { useAppTheme } from '../../core/contexts/ThemeContext';
+import { Card }        from '../components/Card';
+import { AppButton }   from '../components/AppButton';
+import { FormLayout }  from '../components/FormLayout';
 import { Payment, Expense } from '../../domain/models';
 
+type DateRange = 'today' | 'week' | 'month' | 'year';
+const DATE_SEGS: { key: DateRange; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'week',  label: 'Week'  },
+  { key: 'month', label: 'Month' },
+  { key: 'year',  label: 'Year'  },
+];
+
+function rangeStart(range: DateRange): Date {
+  const now = new Date();
+  if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (range === 'week')  { const d = new Date(now); d.setDate(d.getDate() - 6); return d; }
+  if (range === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
+  return new Date(now.getFullYear(), 0, 1);
+}
+
 export function ReportsScreen() {
-    const { manualReports, payments, expenses, stats, refreshAll, addPayment, deletePayment, updatePayment, addManualReport, updateManualReport, deleteManualReport, addExpense, deleteExpense, updateExpense } = useStore();
-    const { colors, isDark } = useAppTheme();
+  const {
+    sales, payments, expenses, stats, manualReports,
+    addPayment, deletePayment, addExpense, deleteExpense,
+    addManualReport, deleteManualReport, refreshAll,
+  } = useStore();
+  const { colors, isDark } = useAppTheme();
 
-    const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-    const [reportModalVisible, setReportModalVisible] = useState(false);
-    const [expenseModalVisible, setExpenseModalVisible] = useState(false);
+  const [range,        setRange]        = useState<DateRange>('month');
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [payModal,     setPayModal]     = useState(false);
+  const [expModal,     setExpModal]     = useState(false);
+  const [reportModal,  setReportModal]  = useState(false);
 
-    // Journal edit state
-    const [editReportModalVisible, setEditReportModalVisible] = useState(false);
-    const [editingReport, setEditingReport] = useState<{ id: number; title: string; content: string; date: string } | null>(null);
-    const [editTitle, setEditTitle] = useState('');
-    const [editContent, setEditContent] = useState('');
-    const [editDate, setEditDate] = useState('');
+  // Payment form
+  const [payAmount, setPayAmount] = useState('');
+  const [payComm,   setPayComm]   = useState('');
+  const [payDate,   setPayDate]   = useState(() => new Date().toISOString().split('T')[0]);
+  const [payNotes,  setPayNotes]  = useState('');
 
-    // Payment edit state
-    const [editPaymentModalVisible, setEditPaymentModalVisible] = useState(false);
-    const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
-    const [editPayAmount, setEditPayAmount] = useState('');
-    const [editPayCommission, setEditPayCommission] = useState('');
-    const [editPayDate, setEditPayDate] = useState('');
-    const [editPayNotes, setEditPayNotes] = useState('');
+  // Expense form
+  const [expAmount, setExpAmount] = useState('');
+  const [expDesc,   setExpDesc]   = useState('');
+  const [expDate,   setExpDate]   = useState(() => new Date().toISOString().split('T')[0]);
 
-    // Expense edit state
-    const [editExpenseModalVisible, setEditExpenseModalVisible] = useState(false);
-    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-    const [editExpAmount, setEditExpAmount] = useState('');
-    const [editExpDate, setEditExpDate] = useState('');
-    const [editExpDesc, setEditExpDesc] = useState('');
-    
-    const [amount, setAmount] = useState('');
-    const [commissionFee, setCommissionFee] = useState('');
-    const [notes, setNotes] = useState('');
-    const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  // Report form
+  const [repTitle,   setRepTitle]   = useState('');
+  const [repContent, setRepContent] = useState('');
+  const [repDate,    setRepDate]    = useState(() => new Date().toISOString().split('T')[0]);
 
-    const [expenseAmount, setExpenseAmount] = useState('');
-    const [expenseDescription, setExpenseDescription] = useState('');
-    const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split('T')[0]);
-    
-    const [reportTitle, setReportTitle] = useState('');
-    const [reportContent, setReportContent] = useState('');
-    const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const onRefresh = async () => { setRefreshing(true); await refreshAll(); setRefreshing(false); };
 
+  // ── Filtered data ─────────────────────────────────────────
+  const start = rangeStart(range);
+  const filteredSales = useMemo(() =>
+    sales.filter(s => new Date(s.date) >= start), [sales, range]);
 
-    const totalGrossPayments = payments.reduce((sum, p) => sum + p.amount, 0);
-    const totalNetPaymentsReceived = payments.reduce((sum, p) => sum + (p.amount - (p.commission_fee || 0)), 0);
-    const outstandingBalance = stats.outstandingBalance;
+  const periodRevenue = filteredSales.reduce((sum, s) => sum + s.sell_price * s.quantity, 0);
+  const periodOrders  = filteredSales.length;
+  const avgOrder      = periodOrders > 0 ? periodRevenue / periodOrders : 0;
 
-    const generatePDF = () => {
-        generatePerformancePDF({ stats, manualReports, payments, sales: [], shipments: [], expenses });
-    };
+  const topProduct = useMemo(() => {
+    const map: Record<string, { name: string; qty: number }> = {};
+    filteredSales.forEach(s => {
+      const n = s.product_name ?? String(s.product_id);
+      if (!map[n]) map[n] = { name: n, qty: 0 };
+      map[n].qty += s.quantity;
+    });
+    return Object.values(map).sort((a, b) => b.qty - a.qty)[0]?.name ?? '—';
+  }, [filteredSales]);
 
-    const handleSavePayment = async () => {
-        if (!amount) return;
-        try {
-            await addPayment(parseFloat(amount), new Date(paymentDate).toISOString(), notes, parseFloat(commissionFee || '0'));
-            setPaymentModalVisible(false);
-            setAmount('');
-            setCommissionFee('');
-            setNotes('');
-            setPaymentDate(new Date().toISOString().split('T')[0]);
-        } catch (e: any) { 
-            console.error('[Reports] Save payment failed:', e);
-            Alert.alert('Error', e.message || 'Failed to save record'); 
-        }
-    };
+  // ── Simple bar chart data (last 7 days) ───────────────────
+  const barData = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - (6 - i));
+      return d.toISOString().split('T')[0];
+    });
+    return days.map(date => ({
+      label: date.slice(5),
+      value: sales
+        .filter(s => s.date.startsWith(date))
+        .reduce((sum, s) => sum + s.sell_price * s.quantity, 0),
+    }));
+  }, [sales]);
 
-    const handleSaveReport = async () => {
-        if (!reportTitle || !reportContent) return;
-        try {
-            await addManualReport(reportTitle, reportContent, reportDate);
-            setReportModalVisible(false);
-            setReportTitle('');
-            setReportContent('');
-            setReportDate(new Date().toISOString().split('T')[0]);
-        } catch (e) { Alert.alert('Error', 'Failed to save journal'); }
-    };
+  const maxBar = Math.max(...barData.map(b => b.value), 1);
+  const BAR_H  = 120;
+  const BAR_W  = 28;
+  const GAP    = 12;
+  const chartW = barData.length * (BAR_W + GAP);
 
-    const handleSaveExpense = async () => {
-        if (!expenseAmount || !expenseDescription) return;
-        try {
-            await addExpense(parseFloat(expenseAmount), expenseDescription, expenseDate);
-            setExpenseModalVisible(false);
-            setExpenseAmount('');
-            setExpenseDescription('');
-            setExpenseDate(new Date().toISOString().split('T')[0]);
-        } catch (e: any) { Alert.alert('Error', e.message || 'Failed to save expense'); }
-    };
+  // ── PDF export ────────────────────────────────────────────
+  const generateAndSharePDF = async () => {
+    try {
+      const html = `
+        <html><body style="font-family:sans-serif;padding:24px">
+          <h1>Business Report</h1>
+          <p>Period: ${range} | Generated: ${new Date().toLocaleDateString()}</p>
+          <h2>Summary</h2>
+          <table border="1" cellpadding="8" cellspacing="0" width="100%">
+            <tr><td>Total Revenue</td><td>SSP ${periodRevenue.toLocaleString()}</td></tr>
+            <tr><td>Total Orders</td><td>${periodOrders}</td></tr>
+            <tr><td>Avg Order Value</td><td>SSP ${avgOrder.toFixed(0)}</td></tr>
+            <tr><td>Top Product</td><td>${topProduct}</td></tr>
+            <tr><td>Net Profit</td><td>SSP ${stats.netProfit.toLocaleString()}</td></tr>
+          </table>
+        </body></html>`;
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri);
+      } else {
+        Alert.alert('PDF saved', uri);
+      }
+    } catch (e: unknown) {
+      Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+    }
+  };
 
-    const openEditReport = (report: { id: number; title: string; content: string; date: string }) => {
-        setEditingReport(report);
-        setEditTitle(report.title);
-        setEditContent(report.content);
-        setEditDate(new Date(report.date).toISOString().split('T')[0]);
-        setEditReportModalVisible(true);
-    };
+  // ── Handlers ──────────────────────────────────────────────
+  const handleSavePayment = async () => {
+    if (!payAmount) return;
+    try {
+      await addPayment(parseFloat(payAmount), new Date(payDate).toISOString(), payNotes, parseFloat(payComm || '0'));
+      setPayModal(false); setPayAmount(''); setPayComm(''); setPayNotes('');
+    } catch (e: unknown) { Alert.alert('Error', e instanceof Error ? e.message : 'Failed'); }
+  };
 
-    const handleUpdateReport = async () => {
-        if (!editingReport || !editTitle || !editContent) return;
-        try {
-            await updateManualReport(editingReport.id, editTitle, editContent, editDate);
-            setEditReportModalVisible(false);
-            setEditingReport(null);
-        } catch (e) { Alert.alert('Error', 'Failed to update journal'); }
-    };
+  const handleSaveExpense = async () => {
+    if (!expAmount || !expDesc) return;
+    try {
+      await addExpense(parseFloat(expAmount), expDesc, expDate);
+      setExpModal(false); setExpAmount(''); setExpDesc('');
+    } catch (e: unknown) { Alert.alert('Error', e instanceof Error ? e.message : 'Failed'); }
+  };
 
-    const openEditPayment = (p: Payment) => {
-        setEditingPayment(p);
-        setEditPayAmount(String(p.amount));
-        setEditPayCommission(String(p.commission_fee || 0));
-        setEditPayDate(new Date(p.date).toISOString().split('T')[0]);
-        setEditPayNotes(p.notes || '');
-        setEditPaymentModalVisible(true);
-    };
+  const handleSaveReport = async () => {
+    if (!repTitle || !repContent) return;
+    try {
+      await addManualReport(repTitle, repContent, repDate);
+      setReportModal(false); setRepTitle(''); setRepContent('');
+    } catch (e: unknown) { Alert.alert('Error', e instanceof Error ? e.message : 'Failed'); }
+  };
 
-    const handleUpdatePayment = async () => {
-        if (!editingPayment || !editPayAmount) return;
-        try {
-            await updatePayment(editingPayment.id, parseFloat(editPayAmount), editPayDate, editPayNotes, parseFloat(editPayCommission || '0'));
-            setEditPaymentModalVisible(false);
-            setEditingPayment(null);
-        } catch (e: any) { 
-            console.error('[Reports] Update payment failed:', e);
-            Alert.alert('Error', e.message || 'Failed to update record'); 
-        }
-    };
+  const confirmDelete = (label: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete this ${label}?`)) onConfirm();
+    } else {
+      Alert.alert(`Delete ${label}`, 'Are you sure?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onConfirm },
+      ]);
+    }
+  };
 
-    const openEditExpense = (e: Expense) => {
-        setEditingExpense(e);
-        setEditExpAmount(String(e.amount));
-        setEditExpDate(new Date(e.date).toISOString().split('T')[0]);
-        setEditExpDesc(e.description || '');
-        setEditExpenseModalVisible(true);
-    };
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.headerAccent, { color: colors.primary }]}>ANALYTICS</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Reports</Text>
+          </View>
+          <TouchableOpacity onPress={generateAndSharePDF} style={[styles.shareBtn, { backgroundColor: isDark ? colors.primaryLight : '#EDE9FE', borderColor: colors.primary }]}>
+            <Feather name="share-2" size={16} color={colors.primary} />
+            <Text style={[styles.shareBtnText, { color: colors.primary }]}>Export</Text>
+          </TouchableOpacity>
+        </View>
 
-    const handleUpdateExpense = async () => {
-        if (!editingExpense || !editExpAmount || !editExpDesc) return;
-        try {
-            await updateExpense(editingExpense.id, parseFloat(editExpAmount), editExpDesc, editExpDate);
-            setEditExpenseModalVisible(false);
-            setEditingExpense(null);
-        } catch (e: any) { Alert.alert('Error', e.message || 'Failed to update expense'); }
-    };
+        {/* Summary hero card */}
+        <Card style={[styles.heroCard, { backgroundColor: colors.primary }]}>
+          <Text style={styles.heroLabel}>NET PROFIT</Text>
+          <Text style={styles.heroValue}>SSP {stats.netProfit.toLocaleString()}</Text>
+          <View style={styles.heroRow}>
+            <View style={styles.heroStat}><Text style={styles.heroStatLabel}>Revenue</Text><Text style={styles.heroStatValue}>SSP {stats.totalRevenue.toLocaleString()}</Text></View>
+            <View style={styles.heroStat}><Text style={styles.heroStatLabel}>Cash Flow</Text><Text style={styles.heroStatValue}>SSP {stats.availableCash.toLocaleString()}</Text></View>
+            <View style={styles.heroStat}><Text style={styles.heroStatLabel}>Balance Due</Text><Text style={[styles.heroStatValue, { color: '#FEF08A' }]}>SSP {stats.outstandingBalance.toLocaleString()}</Text></View>
+          </View>
+        </Card>
 
-    return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                <View style={styles.header}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.headerAccent, { color: colors.primary }]}>BUSINESS JOURNAL</Text>
-                        <Text style={[styles.title, { color: colors.text }]}>Reports & Logs</Text>
-                    </View>
-                    <TouchableOpacity onPress={generatePDF} style={[styles.pdfBtn, { backgroundColor: isDark ? colors.primaryLight : '#F3E8FF', borderColor: colors.primary }]}>
-                        <Text style={[styles.pdfBtnText, { color: colors.primary }]}>EXPORT PDF</Text>
-                    </TouchableOpacity>
+        {/* Date range */}
+        <View style={styles.segmentRow}>
+          {DATE_SEGS.map(s => (
+            <TouchableOpacity key={s.key} onPress={() => setRange(s.key)}
+              style={[styles.segment, { borderColor: colors.border }, range === s.key && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+              <Text style={[styles.segmentText, { color: range === s.key ? '#FFF' : colors.textSecondary }]}>{s.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* KPI row */}
+        <View style={styles.kpiRow}>
+          {[
+            { label: 'Revenue',   value: `SSP ${periodRevenue.toLocaleString()}` },
+            { label: 'Orders',    value: periodOrders.toString() },
+            { label: 'Avg Order', value: `SSP ${avgOrder.toFixed(0)}` },
+            { label: 'Top Item',  value: topProduct },
+          ].map(k => (
+            <View key={k.label} style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.kpiValue, { color: colors.text }]} numberOfLines={1}>{k.value}</Text>
+              <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>{k.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Bar chart */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>7-Day Revenue</Text>
+        <Card style={styles.chartCard}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <Svg width={chartW} height={BAR_H + 30}>
+              {barData.map((b, i) => {
+                const bh = Math.max((b.value / maxBar) * BAR_H, 2);
+                const x  = i * (BAR_W + GAP);
+                return (
+                  <React.Fragment key={b.label}>
+                    <Rect
+                      x={x} y={BAR_H - bh} width={BAR_W} height={bh}
+                      rx={6} fill={colors.primary} opacity={0.85}
+                    />
+                    <SvgText x={x + BAR_W / 2} y={BAR_H + 16} fontSize={9} fill={colors.textMuted} textAnchor="middle">{b.label}</SvgText>
+                  </React.Fragment>
+                );
+              })}
+            </Svg>
+          </ScrollView>
+        </Card>
+
+        {/* Manual entry tools */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Manual Entry</Text>
+        <View style={styles.toolRow}>
+          {[
+            { icon: 'dollar-sign' as const, label: 'Record Cash', onPress: () => setPayModal(true), color: colors.success },
+            { icon: 'file-text'   as const, label: 'Write Journal', onPress: () => setReportModal(true), color: colors.secondary },
+            { icon: 'minus-circle'as const, label: 'Add Expense', onPress: () => setExpModal(true), color: colors.error },
+          ].map(t => (
+            <TouchableOpacity key={t.label} onPress={t.onPress}
+              style={[styles.toolBtn, { backgroundColor: t.color + '15', borderColor: t.color + '40' }]}>
+              <Feather name={t.icon} size={22} color={t.color} />
+              <Text style={[styles.toolLabel, { color: colors.text }]}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Payments list */}
+        {payments.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 28 }]}>Cash Received</Text>
+            {payments.map(p => (
+              <View key={p.id} style={[styles.listRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.listValue, { color: colors.success }]}>+ SSP {p.amount.toLocaleString()}</Text>
+                  {p.commission_fee ? <Text style={[styles.listMeta, { color: colors.error }]}>Commission: -SSP {p.commission_fee.toLocaleString()}</Text> : null}
+                  <Text style={[styles.listMeta, { color: colors.textMuted }]}>{p.notes} · {new Date(p.date).toLocaleDateString()}</Text>
                 </View>
+                <TouchableOpacity onPress={() => confirmDelete('payment', () => deletePayment(p.id))}>
+                  <Feather name="trash-2" size={14} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </>
+        )}
 
-                {/* Summary Card */}
-                <Card style={[styles.mainCard, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.cardLabel}>Portfolio Net Profit</Text>
-                    <Text style={styles.profitText}>SSP {stats.netProfit.toLocaleString()}</Text>
-                    <View style={styles.divider} />
-                    <View style={styles.statsRow}>
-                        <View style={styles.stat}>
-                            <Text style={styles.statLabel}>Net Cash In</Text>
-                            <Text style={styles.statValue}>SSP {totalNetPaymentsReceived.toLocaleString()}</Text>
-                        </View>
-                        <View style={styles.stat}>
-                            <Text style={styles.statLabel}>Commissions</Text>
-                            <Text style={[styles.statValue, { color: '#FDA4AF' }]}>
-                                SSP {stats.totalCommissions.toLocaleString()}
-                            </Text>
-                        </View>
-                        <View style={styles.stat}>
-                            <Text style={styles.statLabel}>Balance Due</Text>
-                            <Text style={[styles.statValue, { color: outstandingBalance > 0 ? '#FEF08A' : '#FFFFFF' }]}>
-                                SSP {outstandingBalance.toLocaleString()}
-                            </Text>
-                        </View>
-                    </View>
-                </Card>
-
-                {/* Quick Addition Section */}
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Manual Entry Tools</Text>
-                <View style={styles.toolRow}>
-                    <TouchableOpacity style={[styles.toolBtn, { backgroundColor: isDark ? colors.surface : '#EEF2FF', borderColor: isDark ? colors.primary : '#F3F4F6' }]} onPress={() => setPaymentModalVisible(true)}>
-                        <Text style={styles.toolIcon}>💰</Text>
-                        <Text style={[styles.toolText, { color: colors.text }]}>Record Money</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.toolBtn, { backgroundColor: isDark ? colors.surface : '#FDF2F8', borderColor: isDark ? colors.secondary : '#F3F4F6' }]} onPress={() => setReportModalVisible(true)}>
-                        <Text style={styles.toolIcon}>📝</Text>
-                        <Text style={[styles.toolText, { color: colors.text }]}>Write Journal</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.toolBtn, { backgroundColor: isDark ? colors.surface : '#FFF7ED', borderColor: isDark ? colors.warning : '#F3F4F6' }]} onPress={() => setExpenseModalVisible(true)}>
-                        <Text style={styles.toolIcon}>💸</Text>
-                        <Text style={[styles.toolText, { color: colors.text }]}>Add Expense</Text>
-                    </TouchableOpacity>
+        {/* Expenses list */}
+        {expenses.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 28 }]}>Expenses</Text>
+            {expenses.map(e => (
+              <View key={e.id} style={[styles.listRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.listValue, { color: colors.error }]}>- SSP {e.amount.toLocaleString()}</Text>
+                  <Text style={[styles.listMeta, { color: colors.textMuted }]}>{e.description} · {new Date(e.date).toLocaleDateString()}</Text>
                 </View>
+                <TouchableOpacity onPress={() => confirmDelete('expense', () => deleteExpense(e.id))}>
+                  <Feather name="trash-2" size={14} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </>
+        )}
 
-                {/* Manual Reports Section */}
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Business Journals</Text>
-                {manualReports.length > 0 ? manualReports.map(report => (
-                    <Card key={report.id} style={styles.reportCard}>
-                        <View style={styles.reportHeader}>
-                            <Text style={[styles.reportTitle, { color: colors.text, flex: 1, marginRight: 8 }]}>{report.title}</Text>
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                <TouchableOpacity onPress={() => openEditReport(report)}>
-                                    <Text style={[styles.deleteLink, { color: colors.primary }]}>Edit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => {
-                                    const proc = async () => {
-                                        try { await deleteManualReport(report.id); } catch(e: any) { Alert.alert('Error', e.message); }
-                                    };
-                                    if (Platform.OS === 'web') {
-                                        if (window.confirm('Delete this journal?')) proc();
-                                    } else {
-                                        Alert.alert('Delete Journal', 'Are you sure?', [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            { text: 'Delete', style: 'destructive', onPress: proc }
-                                        ]);
-                                    }
-                                }}>
-                                    <Text style={styles.deleteLink}>Delete</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                        <Text style={[styles.reportDate, { color: colors.textMuted }]}>{new Date(report.date).toLocaleDateString()}</Text>
-                        <Text style={[styles.reportContent, { color: colors.textSecondary }]}>{report.content}</Text>
-                    </Card>
-                )) : (
-                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>No journals written yet.</Text>
-                )}
+        {/* Journals list */}
+        {manualReports.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 28 }]}>Business Journals</Text>
+            {manualReports.map(r => (
+              <Card key={r.id} style={styles.reportCard}>
+                <View style={styles.reportHeader}>
+                  <Text style={[styles.reportTitle, { color: colors.text, flex: 1 }]}>{r.title}</Text>
+                  <TouchableOpacity onPress={() => confirmDelete('journal', () => deleteManualReport(r.id))}>
+                    <Feather name="trash-2" size={14} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.listMeta, { color: colors.textMuted }]}>{new Date(r.date).toLocaleDateString()}</Text>
+                <Text style={[styles.reportContent, { color: colors.textSecondary }]}>{r.content}</Text>
+              </Card>
+            ))}
+          </>
+        )}
 
-                {/* Money History Section */}
-                <Text style={[styles.sectionTitle, { marginTop: 32, color: colors.text }]}>Cash Received History</Text>
-                {payments.length > 0 ? payments.map(p => (
-                    <Card key={p.id} style={styles.listCard}>
-                        <View style={styles.listCardTop}>
-                            <View style={styles.paymentInfo}>
-                                <Text style={styles.paymentValue}>+ SSP {p.amount.toLocaleString()}</Text>
-                                {p.commission_fee ? (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                                        <Text style={[styles.paymentNotes, { color: colors.error, fontSize: 10, fontWeight: '900' }]}>
-                                            Commission: -SSP {p.commission_fee.toLocaleString()}
-                                        </Text>
-                                        <Text style={[styles.paymentNotes, { color: colors.textSecondary, fontSize: 10, marginLeft: 4 }]}>
-                                            (Net: SSP {(p.amount - p.commission_fee).toLocaleString()})
-                                        </Text>
-                                    </View>
-                                ) : null}
-                                <Text style={[styles.paymentNotes, { color: colors.textSecondary }]}>{p.notes}</Text>
-                                <Text style={[styles.paymentDate, { color: colors.textMuted }]}>{new Date(p.date).toLocaleDateString()}</Text>
-                            </View>
-                            <View style={styles.actionBtns}>
-                                <TouchableOpacity onPress={() => openEditPayment(p)}>
-                                    <Text style={[styles.actionLink, { color: colors.primary }]}>Edit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => {
-                                    const proc = async () => {
-                                        try { await deletePayment(p.id); } catch(e: any) { Alert.alert('Error', e.message); }
-                                    };
-                                    if (Platform.OS === 'web') {
-                                        if (window.confirm('Remove this cash record?')) proc();
-                                    } else {
-                                        Alert.alert('Delete Record', 'Remove this cash record?', [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            { text: 'Delete', style: 'destructive', onPress: proc }
-                                        ]);
-                                    }
-                                }}>
-                                    <Text style={styles.actionLink}>Delete</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </Card>
-                )) : (
-                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>No cash records found.</Text>
-                )}
+        <View style={{ height: 110 }} />
+      </ScrollView>
 
-                {/* Expenses History Section */}
-                <Text style={[styles.sectionTitle, { marginTop: 32, color: colors.text }]}>Personal Expense History</Text>
-                {expenses.length > 0 ? expenses.map(e => (
-                    <Card key={e.id} style={[styles.listCard, { borderColor: isDark ? colors.error : '#FEE2E2', borderWidth: 1 }]}>
-                        <View style={styles.listCardTop}>
-                            <View style={styles.paymentInfo}>
-                                <Text style={[styles.paymentValue, { color: colors.error }]}>- SSP {e.amount.toLocaleString()}</Text>
-                                <Text style={[styles.paymentNotes, { color: colors.textSecondary }]}>{e.description}</Text>
-                                <Text style={[styles.paymentDate, { color: colors.textMuted }]}>{new Date(e.date).toLocaleDateString()}</Text>
-                            </View>
-                            <View style={styles.actionBtns}>
-                                <TouchableOpacity onPress={() => openEditExpense(e)}>
-                                    <Text style={[styles.actionLink, { color: colors.primary }]}>Edit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => {
-                                    const proc = async () => {
-                                        try { await deleteExpense(e.id); } catch(e: any) { Alert.alert('Error', e.message); }
-                                    };
-                                    if (Platform.OS === 'web') {
-                                        if (window.confirm('Remove this expense?')) proc();
-                                    } else {
-                                        Alert.alert('Delete Expense', 'Remove this expense?', [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            { text: 'Delete', style: 'destructive', onPress: proc }
-                                        ]);
-                                    }
-                                }}>
-                                    <Text style={styles.actionLink}>Delete</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </Card>
-                )) : (
-                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>No personal expenses recorded.</Text>
-                )}
+      {/* Payment modal */}
+      <Modal visible={payModal} animationType="slide" presentationStyle="pageSheet">
+        <FormLayout contentContainerStyle={[styles.modal, { backgroundColor: colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Record Cash</Text>
+            <AppButton title="✕" type="ghost" onPress={() => setPayModal(false)} />
+          </View>
+          {[['AMOUNT (SSP)', payAmount, setPayAmount, 'numeric'],['COMMISSION (SSP)', payComm, setPayComm, 'numeric'],['DATE', payDate, setPayDate, 'default'],['NOTES', payNotes, setPayNotes, 'default']].map(([lbl, val, setter, kb]) => (
+            <React.Fragment key={lbl as string}>
+              <Text style={[styles.label, { color: colors.textMuted }]}>{lbl as string}</Text>
+              <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: isDark ? colors.background : '#F9FAFB' }]}
+                value={val as string} onChangeText={setter as (t: string) => void}
+                keyboardType={kb === 'numeric' ? 'numeric' : 'default'}
+                placeholderTextColor={colors.textMuted}
+              />
+            </React.Fragment>
+          ))}
+          <AppButton title="Save Record" onPress={handleSavePayment} style={{ marginTop: 20 }} />
+        </FormLayout>
+      </Modal>
 
-                <View style={{ height: 100 }} />
-            </ScrollView>
+      {/* Expense modal */}
+      <Modal visible={expModal} animationType="slide" presentationStyle="pageSheet">
+        <FormLayout contentContainerStyle={[styles.modal, { backgroundColor: colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Expense</Text>
+            <AppButton title="✕" type="ghost" onPress={() => setExpModal(false)} />
+          </View>
+          <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT (SSP)</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={expAmount} onChangeText={setExpAmount} keyboardType="numeric" placeholderTextColor={colors.textMuted} placeholder="0.00" />
+          <Text style={[styles.label, { color: colors.textMuted }]}>DATE</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={expDate} onChangeText={setExpDate} placeholderTextColor={colors.textMuted} placeholder="YYYY-MM-DD" />
+          <Text style={[styles.label, { color: colors.textMuted }]}>DESCRIPTION</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={expDesc} onChangeText={setExpDesc} placeholderTextColor={colors.textMuted} placeholder="What was this for?" />
+          <AppButton title="Save Expense" onPress={handleSaveExpense} style={{ marginTop: 20 }} />
+        </FormLayout>
+      </Modal>
 
-            {/* Money Modal */}
-            <Modal visible={paymentModalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Record Cash</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setPaymentModalVisible(false)} />
-                    </View>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT RECEIVED (SSP)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={amount} onChangeText={setAmount} keyboardType="numeric" />
-                    
-                    <Text style={[styles.label, { color: colors.textMuted }]}>COMMISSION FEE (SSP)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={commissionFee} onChangeText={setCommissionFee} keyboardType="numeric" />
-
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={paymentDate} onChangeText={setPaymentDate} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>NOTES</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 100 }]} placeholder="Source of money..." placeholderTextColor={colors.textMuted} value={notes} onChangeText={setNotes} multiline />
-                    <AppButton title="Save Record" onPress={handleSavePayment} style={{ marginTop: 20 }} />
-                </FormLayout>
-            </Modal>
-
-            {/* Journal Modal */}
-            <Modal visible={reportModalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>New Journal Entry</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setReportModalVisible(false)} />
-                    </View>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>REPORT TITLE</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="e.g. Daily Closing" placeholderTextColor={colors.textMuted} value={reportTitle} onChangeText={setReportTitle} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={reportDate} onChangeText={setReportDate} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>REPORT CONTENT</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 200 }]} placeholder="Describe the business day..." placeholderTextColor={colors.textMuted} value={reportContent} onChangeText={setReportContent} multiline />
-                    <AppButton title="Submit Journal" onPress={handleSaveReport} style={{ marginTop: 20 }} />
-                </FormLayout>
-            </Modal>
-
-            {/* Expense Modal */}
-            <Modal visible={expenseModalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Record Expense</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setExpenseModalVisible(false)} />
-                    </View>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT SPENT (SSP)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={expenseAmount} onChangeText={setExpenseAmount} keyboardType="numeric" />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={expenseDate} onChangeText={setExpenseDate} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DESCRIPTION</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="What was this for? (e.g. Lunch, Transports)" placeholderTextColor={colors.textMuted} value={expenseDescription} onChangeText={setExpenseDescription} />
-                    <Text style={[styles.inputHint, { color: colors.textMuted }]}>⚠️ Note: Record shipping costs in the Shipments section to avoid double-counting.</Text>
-                    <AppButton title="Save Expense" onPress={handleSaveExpense} style={{ marginTop: 20 }} />
-                </FormLayout>
-            </Modal>
-
-            {/* Edit Journal Modal */}
-            <Modal visible={editReportModalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Journal</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setEditReportModalVisible(false)} />
-                    </View>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>TITLE</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="e.g. Daily Closing" placeholderTextColor={colors.textMuted} value={editTitle} onChangeText={setEditTitle} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editDate} onChangeText={setEditDate} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>CONTENT</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 200 }]} placeholder="Describe the business day..." placeholderTextColor={colors.textMuted} value={editContent} onChangeText={setEditContent} multiline />
-                    <AppButton title="Save Changes" onPress={handleUpdateReport} style={{ marginTop: 20 }} />
-                </FormLayout>
-            </Modal>
-
-            {/* Edit Payment Modal */}
-            <Modal visible={editPaymentModalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Cash Record</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setEditPaymentModalVisible(false)} />
-                    </View>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT (SSP)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={editPayAmount} onChangeText={setEditPayAmount} keyboardType="numeric" />
-                    
-                    <Text style={[styles.label, { color: colors.textMuted }]}>COMMISSION FEE (SSP)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={editPayCommission} onChangeText={setEditPayCommission} keyboardType="numeric" />
-
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editPayDate} onChangeText={setEditPayDate} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>NOTES</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text, height: 100 }]} placeholder="Source of money..." placeholderTextColor={colors.textMuted} value={editPayNotes} onChangeText={setEditPayNotes} multiline />
-                    <AppButton title="Save Changes" onPress={handleUpdatePayment} style={{ marginTop: 20 }} />
-                </FormLayout>
-            </Modal>
-
-            {/* Edit Expense Modal */}
-            <Modal visible={editExpenseModalVisible} animationType="slide" presentationStyle="pageSheet">
-                <FormLayout contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Expense</Text>
-                        <AppButton title="✕" type="ghost" onPress={() => setEditExpenseModalVisible(false)} />
-                    </View>
-                    <Text style={[styles.label, { color: colors.textMuted }]}>AMOUNT (SSP)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textMuted} value={editExpAmount} onChangeText={setEditExpAmount} keyboardType="numeric" />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DATE (YYYY-MM-DD)</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textMuted} value={editExpDate} onChangeText={setEditExpDate} />
-                    <Text style={[styles.label, { color: colors.textMuted }]}>DESCRIPTION</Text>
-                    <TextInput style={[styles.input, { backgroundColor: isDark ? colors.background : '#F9FAFB', borderColor: colors.border, color: colors.text }]} placeholder="What was this for?" placeholderTextColor={colors.textMuted} value={editExpDesc} onChangeText={setEditExpDesc} />
-                    <Text style={[styles.inputHint, { color: colors.textMuted }]}>⚠️ Note: Record shipping costs in the Shipments section.</Text>
-                    <AppButton title="Save Changes" onPress={handleUpdateExpense} style={{ marginTop: 20 }} />
-                </FormLayout>
-            </Modal>
-        </SafeAreaView>
-    );
+      {/* Journal modal */}
+      <Modal visible={reportModal} animationType="slide" presentationStyle="pageSheet">
+        <FormLayout contentContainerStyle={[styles.modal, { backgroundColor: colors.surface }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>New Journal</Text>
+            <AppButton title="✕" type="ghost" onPress={() => setReportModal(false)} />
+          </View>
+          <Text style={[styles.label, { color: colors.textMuted }]}>TITLE</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={repTitle} onChangeText={setRepTitle} placeholderTextColor={colors.textMuted} placeholder="e.g. Daily Closing" />
+          <Text style={[styles.label, { color: colors.textMuted }]}>DATE</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={repDate} onChangeText={setRepDate} placeholderTextColor={colors.textMuted} placeholder="YYYY-MM-DD" />
+          <Text style={[styles.label, { color: colors.textMuted }]}>CONTENT</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text, height: 140 }]} value={repContent} onChangeText={setRepContent} placeholderTextColor={colors.textMuted} placeholder="Describe the business day…" multiline />
+          <AppButton title="Save Journal" onPress={handleSaveReport} style={{ marginTop: 20 }} />
+        </FormLayout>
+      </Modal>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    content: { padding: 24 },
-    header: { marginBottom: 32, marginTop: 10, flexDirection: 'row', alignItems: 'center' },
-    headerAccent: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
-    title: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
-    
-    pdfBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
-    pdfBtnText: { fontSize: 11, fontWeight: '900' },
-
-    mainCard: { padding: 24, borderRadius: 20 },
-    cardLabel: { fontSize: 11, fontWeight: '900', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 1 },
-    profitText: { fontSize: 32, fontWeight: '900', color: '#FFFFFF', marginBottom: 16 },
-    divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 16 },
-    statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    stat: { flex: 1 },
-    statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 4, fontWeight: 'bold' },
-    statValue: { fontSize: 15, fontWeight: '900', color: '#FFFFFF' },
-    
-    sectionTitle: { fontSize: 15, fontWeight: '900', marginTop: 32, marginBottom: 16 },
-    
-    toolRow: { flexDirection: 'row', gap: 16 },
-    toolBtn: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1 },
-    toolIcon: { fontSize: 24, marginBottom: 8 },
-    toolText: { fontSize: 11, fontWeight: '900' },
-
-    reportCard: { padding: 20, borderRadius: 16, marginBottom: 12 },
-    reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    reportTitle: { fontSize: 16, fontWeight: 'bold' },
-    reportDate: { fontSize: 11, marginTop: 2, marginBottom: 10 },
-    reportContent: { fontSize: 13, lineHeight: 18 },
-    deleteLink: { fontSize: 11, color: '#EF4444', fontWeight: 'bold' },
-
-    listCard: { padding: 16, borderRadius: 12, marginBottom: 12 },
-    listCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-    actionBtns: { flexDirection: 'column', alignItems: 'flex-end', gap: 6, marginLeft: 12 },
-    actionLink: { fontSize: 11, color: '#EF4444', fontWeight: 'bold' },
-
-    paymentInfo: { flex: 1 },
-    paymentValue: { fontSize: 15, fontWeight: 'bold', color: '#10B981' },
-    paymentNotes: { fontSize: 12, marginTop: 2 },
-    paymentDate: { fontSize: 11, marginTop: 2 },
-
-    emptyText: { textAlign: 'center', marginTop: 20, fontStyle: 'italic', fontSize: 13 },
-    modalContainer: { padding: 24, paddingTop: 60 },
-    modalTitle: { fontSize: 22, fontWeight: '900' },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
-    label: { fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1 },
-    input: { padding: 16, borderRadius: 12, borderWidth: 1, fontSize: 16, marginBottom: 20 },
-    inputHint: { fontSize: 10, fontStyle: 'italic', marginTop: -15, marginBottom: 15, fontWeight: '600' }
+  container:     { flex: 1 },
+  content:       { padding: 24 },
+  header:        { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  headerAccent:  { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
+  title:         { fontSize: 26, fontWeight: '900' },
+  shareBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  shareBtnText:  { fontSize: 12, fontWeight: '800' },
+  heroCard:      { padding: 24, borderRadius: 24, marginBottom: 20 },
+  heroLabel:     { fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.7)', letterSpacing: 1 },
+  heroValue:     { fontSize: 30, fontWeight: '900', color: '#FFF', marginVertical: 8 },
+  heroRow:       { flexDirection: 'row', gap: 16, marginTop: 8 },
+  heroStat:      { flex: 1 },
+  heroStatLabel: { fontSize: 9, color: 'rgba(255,255,255,0.6)', fontWeight: '700' },
+  heroStatValue: { fontSize: 13, color: '#FFF', fontWeight: '900', marginTop: 2 },
+  segmentRow:    { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  segment:       { flex: 1, paddingVertical: 8, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  segmentText:   { fontSize: 11, fontWeight: '700' },
+  kpiRow:        { flexDirection: 'row', gap: 10, marginBottom: 28 },
+  kpiCard:       { flex: 1, borderRadius: 14, borderWidth: 1, padding: 10, alignItems: 'center' },
+  kpiValue:      { fontSize: 13, fontWeight: '900', marginBottom: 4, textAlign: 'center' },
+  kpiLabel:      { fontSize: 9, fontWeight: '700', textAlign: 'center' },
+  sectionTitle:  { fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
+  chartCard:     { padding: 16, borderRadius: 20, marginBottom: 28, alignItems: 'flex-start' },
+  toolRow:       { flexDirection: 'row', gap: 12, marginBottom: 4 },
+  toolBtn:       { flex: 1, padding: 16, borderRadius: 16, borderWidth: 1, alignItems: 'center', gap: 8 },
+  toolLabel:     { fontSize: 10, fontWeight: '800', textAlign: 'center' },
+  listRow:       { flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 8 },
+  listValue:     { fontSize: 14, fontWeight: '900', marginBottom: 2 },
+  listMeta:      { fontSize: 11, marginTop: 1 },
+  reportCard:    { padding: 16, borderRadius: 16, marginBottom: 10 },
+  reportHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  reportTitle:   { fontSize: 15, fontWeight: '800' },
+  reportContent: { fontSize: 13, lineHeight: 18, marginTop: 6 },
+  modal:         { padding: 24, paddingTop: 48 },
+  modalHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
+  modalTitle:    { fontSize: 20, fontWeight: '900' },
+  label:         { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 10 },
+  input:         { padding: 14, borderRadius: 12, borderWidth: 1, fontSize: 15, marginBottom: 18 },
 });

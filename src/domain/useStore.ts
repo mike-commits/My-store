@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { ProductRepository, ShipmentRepository, SaleRepository, PaymentRepository, ManualReportRepository, ExpenseRepository } from '../data/repositories';
-import { Product, Shipment, ShipmentItem, Sale, Payment, ManualReport, Expense } from '../domain/models';
+import { ProductRepository, ShipmentRepository, SaleRepository, PaymentRepository, ManualReportRepository, ExpenseRepository, CustomerRepository } from '../data/repositories';
+import { Product, Shipment, ShipmentItem, Sale, Payment, ManualReport, Expense, Customer } from '../domain/models';
 import { offlineService } from '../data/OfflineService';
 import { NotificationService } from '../data/NotificationService';
 import { supabase } from '../data/supabase';
@@ -12,6 +12,7 @@ const saleRepo = new SaleRepository();
 const paymentRepo = new PaymentRepository();
 const reportRepo = new ManualReportRepository();
 const expenseRepo = new ExpenseRepository();
+const customerRepo = new CustomerRepository();
 
 let globalProducts: Product[] = [];
 let globalShipments: Shipment[] = [];
@@ -19,6 +20,7 @@ let globalSales: Sale[] = [];
 let globalPayments: Payment[] = [];
 let globalReports: ManualReport[] = [];
 let globalExpenses: Expense[] = [];
+let globalCustomers: Customer[] = [];
 let listeners: Array<() => void> = [];
 
 const notifyListeners = () => listeners.forEach(l => l());
@@ -55,13 +57,14 @@ export const useStore = () => {
                 return;
             }
 
-            const [products, shipments, sales, payments, reports, expenses] = await Promise.all([
+            const [products, shipments, sales, payments, reports, expenses, customers] = await Promise.all([
                 productRepo.getProducts(),
                 shipmentRepo.getShipments(),
                 saleRepo.getSales(),
                 paymentRepo.getPayments(),
                 reportRepo.getReports(),
-                expenseRepo.getExpenses()
+                expenseRepo.getExpenses(),
+                customerRepo.getCustomers(),
             ]);
 
             globalProducts = products;
@@ -70,6 +73,7 @@ export const useStore = () => {
             globalPayments = payments;
             globalReports = reports;
             globalExpenses = expenses;
+            globalCustomers = customers;
             
             // Background tasks
             offlineService.cacheProducts(products);
@@ -133,6 +137,53 @@ export const useStore = () => {
         await refreshAll();
     };
 
+    const addPayment = async (amount: number, date: string, notes: string, commissionFee: number = 0) => {
+        await paymentRepo.addPayment(amount, date, notes, commissionFee);
+        await refreshAll();
+    };
+
+    const deletePayment = async (id: number) => {
+        await paymentRepo.deletePayment(id);
+        await refreshAll();
+    };
+
+    const addExpense = async (amount: number, description: string, date: string) => {
+        await expenseRepo.addExpense(amount, date, description);
+        await refreshAll();
+    };
+
+    const deleteExpense = async (id: number) => {
+        await expenseRepo.deleteExpense(id);
+        await refreshAll();
+    };
+
+    const addManualReport = async (title: string, content: string, date: string) => {
+        await reportRepo.addReport(title, content, date);
+        await refreshAll();
+    };
+
+    const deleteManualReport = async (id: number) => {
+        await reportRepo.deleteReport(id);
+        await refreshAll();
+    };
+
+    const addCustomer = async (customer: Omit<Customer, 'id' | 'total_spent' | 'last_purchase'>) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Auth required");
+        await customerRepo.addCustomer({ ...customer, user_id: user.id });
+        await refreshAll();
+    };
+
+    const updateCustomer = async (id: number, customer: Partial<Customer>) => {
+        await customerRepo.updateCustomer(id, customer);
+        await refreshAll();
+    };
+
+    const deleteCustomer = async (id: number) => {
+        await customerRepo.deleteCustomer(id);
+        await refreshAll();
+    };
+
     const stats = useMemo(() => {
         const totalRevenue = globalSales.reduce((acc, s) => acc + (s.sell_price * s.quantity), 0);
         const totalCogs = globalSales.reduce((acc, s) => acc + (s.buy_price * s.quantity), 0);
@@ -152,10 +203,22 @@ export const useStore = () => {
             netProfit,
             availableCash,
             inventoryValueAtCost,
+            totalCommissions,
+            outstandingBalance: totalRevenue - totalPaymentsReceived,
             totalSalesCount: globalSales.length,
             lowStockCount: globalProducts.filter(p => p.quantity <= 5).length
         };
     }, [globalSales, globalProducts, globalShipments, globalPayments, globalExpenses]);
+
+    // Expose repository methods needed by ProductDetailsScreen
+    const getProductShipments = useCallback(
+        (productId: number) => productRepo.getProductShipments(productId),
+        []
+    );
+    const getProductSales = useCallback(
+        (productId: number) => productRepo.getProductSales(productId),
+        []
+    );
 
     return {
         stats,
@@ -171,14 +234,26 @@ export const useStore = () => {
         updateProduct,
         deleteProduct,
         addShipment,
+        getProductShipments,
+        getProductSales,
         deleteShipment: async (id: number) => {
             await shipmentRepo.deleteShipment(id);
             await refreshAll();
         },
         addSale,
+        addPayment,
+        deletePayment,
+        addExpense,
+        deleteExpense,
+        addManualReport,
+        deleteManualReport,
         deleteSale: async (id: number) => {
             await saleRepo.deleteSale(id);
             await refreshAll();
         },
+        customers: globalCustomers,
+        addCustomer,
+        updateCustomer,
+        deleteCustomer,
     };
 };

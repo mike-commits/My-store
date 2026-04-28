@@ -60,3 +60,14 @@ export interface Expense {
     date: string;
     description: string;
 }
+
+export interface Customer {
+    id: number;
+    name: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    notes?: string;
+    total_spent?: number;
+    last_purchase?: string;
+}

@@ -1,159 +1,156 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Switch, TouchableOpacity, Alert } from 'react-native';
+/**
+ * src/presenter/screens/SettingsScreen.tsx
+ * User profile, store configuration, theme toggle, and sign-out.
+ * Replaces the old Settings tab referenced in App.tsx.
+ */
+
+import React, { useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  TextInput, Alert, Switch,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAppTheme } from '../../core/contexts/ThemeContext';
-import { useAuth } from '../../core/contexts/AuthContext';
-import { Card } from '../components/Card';
-import { AppButton } from '../components/AppButton';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { useAppTheme }           from '../../core/contexts/ThemeContext';
+import { useAuth }               from '../../core/contexts/AuthContext';
+import { supabase }              from '../../data/supabase';
+
+type FeatherName = React.ComponentProps<typeof Feather>['name'];
+
+interface SettingRowProps {
+  icon:     FeatherName;
+  label:    string;
+  value?:   string;
+  right?:   React.ReactNode;
+  onPress?: () => void;
+  color?:   string;
+}
+
 export function SettingsScreen() {
-    const { colors, isDark, toggleTheme } = useAppTheme();
-    const { user, signOut } = useAuth();
-    
-    const [storeName, setStoreName] = useState('My Retail Store');
-    const [currency, setCurrency] = useState('SSP');
-    const [taxRate, setTaxRate] = useState('0');
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { colors, isDark, toggleTheme } = useAppTheme();
+  const { user } = useAuth();
 
-    useEffect(() => {
-        loadSettings();
-    }, []);
+  const meta      = user?.user_metadata as { full_name?: string; store_name?: string } | undefined;
+  const email     = user?.email ?? '—';
+  const fullName  = meta?.full_name ?? '—';
+  const storeName = meta?.store_name ?? '—';
+  const initials  = fullName !== '—' ? fullName.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : '?';
 
-    const loadSettings = async () => {
-        try {
-            const saved = await AsyncStorage.getItem('app_settings');
-            if (saved) {
-                const data = JSON.parse(saved);
-                setStoreName(data.storeName || 'My Retail Store');
-                setCurrency(data.currency || 'SSP');
-                setTaxRate(data.taxRate || '0');
-                setNotificationsEnabled(data.notificationsEnabled ?? true);
-            }
-        } catch (e) {
-            console.error('Failed to load settings', e);
-        }
-    };
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: async () => {
+        await supabase.auth.signOut();
+      }},
+    ]);
+  };
 
-    const saveSettings = async () => {
-        try {
-            const data = { storeName, currency, taxRate, notificationsEnabled };
-            await AsyncStorage.setItem('app_settings', JSON.stringify(data));
-            Alert.alert("Success", "Settings saved successfully");
-        } catch (e) {
-            Alert.alert("Error", "Failed to save settings");
-        }
-    };
+  const handleClearCache = async () => {
+    try {
+      await AsyncStorage.clear();
+      Alert.alert('Done', 'Local cache cleared. Restart the app to reload data.');
+    } catch {
+      Alert.alert('Error', 'Failed to clear cache.');
+    }
+  };
 
-    return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-            </View>
+  const SettingRow = ({ icon, label, value, right, onPress, color }: SettingRowProps) => (
+    <TouchableOpacity
+      disabled={!onPress}
+      onPress={onPress}
+      style={[styles.settingRow, { borderBottomColor: colors.border }]}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
+      <View style={[styles.settingIcon, { backgroundColor: (color ?? colors.primary) + '18' }]}>
+        <Feather name={icon} size={16} color={color ?? colors.primary} />
+      </View>
+      <Text style={[styles.settingLabel, { color: colors.text }]}>{label}</Text>
+      <View style={styles.settingRight}>
+        {value && <Text style={[styles.settingValue, { color: colors.textMuted }]} numberOfLines={1}>{value}</Text>}
+        {right}
+        {onPress && !right && <Feather name="chevron-right" size={16} color={colors.textMuted} />}
+      </View>
+    </TouchableOpacity>
+  );
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Store Information</Text>
-                <Card style={styles.card}>
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: colors.textSecondary }]}>Store Name</Text>
-                        <TextInput
-                            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                            value={storeName}
-                            onChangeText={setStoreName}
-                        />
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: colors.textSecondary }]}>Currency Code</Text>
-                        <TextInput
-                            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                            value={currency}
-                            onChangeText={setCurrency}
-                            placeholder="e.g. USD, SSP, EUR"
-                        />
-                    </View>
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: colors.textSecondary }]}>Tax Rate (%)</Text>
-                        <TextInput
-                            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-                            value={taxRate}
-                            onChangeText={setTaxRate}
-                            keyboardType="numeric"
-                        />
-                    </View>
-                </Card>
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.pageHeader}>
+          <Text style={[styles.headerAccent, { color: colors.primary }]}>CONFIGURATION</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+        </View>
 
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
-                <Card style={styles.card}>
-                    <View style={styles.settingRow}>
-                        <View>
-                            <Text style={[styles.settingLabel, { color: colors.text }]}>Dark Mode</Text>
-                            <Text style={[styles.settingSub, { color: colors.textMuted }]}>Switch between light and dark themes</Text>
-                        </View>
-                        <Switch
-                            value={isDark}
-                            onValueChange={toggleTheme}
-                            trackColor={{ false: '#CBD5E1', true: colors.primary }}
-                        />
-                    </View>
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                    <View style={styles.settingRow}>
-                        <View>
-                            <Text style={[styles.settingLabel, { color: colors.text }]}>Notifications</Text>
-                            <Text style={[styles.settingSub, { color: colors.textMuted }]}>Low stock and delivery alerts</Text>
-                        </View>
-                        <Switch
-                            value={notificationsEnabled}
-                            onValueChange={setNotificationsEnabled}
-                            trackColor={{ false: '#CBD5E1', true: colors.primary }}
-                        />
-                    </View>
-                </Card>
+        {/* Avatar + identity card */}
+        <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.profileName, { color: colors.text }]}>{fullName}</Text>
+            <Text style={[styles.profileStore, { color: colors.primary }]}>{storeName}</Text>
+            <Text style={[styles.profileEmail, { color: colors.textMuted }]}>{email}</Text>
+          </View>
+        </View>
 
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
-                <Card style={styles.card}>
-                    <View style={styles.accountRow}>
-                        <Feather name="user" size={20} color={colors.textSecondary} />
-                        <Text style={[styles.accountEmail, { color: colors.text }]}>{user?.email}</Text>
-                    </View>
-                    <TouchableOpacity 
-                        style={[styles.logoutButton, { borderColor: colors.error }]}
-                        onPress={signOut}
-                    >
-                        <Feather name="log-out" size={18} color={colors.error} />
-                        <Text style={[styles.logoutText, { color: colors.error }]}>Sign Out</Text>
-                    </TouchableOpacity>
-                </Card>
+        {/* Appearance */}
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>APPEARANCE</Text>
+        <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <SettingRow
+            icon="moon"
+            label="Dark Mode"
+            right={<Switch value={isDark} onValueChange={toggleTheme} trackColor={{ true: colors.primary }} thumbColor="#FFF" />}
+          />
+        </View>
 
-                <AppButton
-                    title="Save All Changes"
-                    onPress={saveSettings}
-                    style={styles.saveButton}
-                />
-                
-                <View style={{ height: 100 }} />
-            </ScrollView>
-        </SafeAreaView>
-    );
+        {/* Account */}
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>ACCOUNT</Text>
+        <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <SettingRow icon="user"   label="Full Name"   value={fullName} />
+          <SettingRow icon="shopping-bag" label="Store Name" value={storeName} />
+          <SettingRow icon="mail"   label="Email"       value={email} />
+        </View>
+
+        {/* Data */}
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DATA</Text>
+        <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <SettingRow icon="refresh-cw" label="Clear Local Cache" onPress={handleClearCache} color={colors.warning} />
+        </View>
+
+        {/* Danger zone */}
+        <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.error + '40', marginTop: 12 }]}>
+          <SettingRow icon="log-out" label="Sign Out" onPress={handleSignOut} color={colors.error} />
+        </View>
+
+        {/* Version */}
+        <Text style={[styles.versionText, { color: colors.textMuted }]}>My Store • v1.0.0</Text>
+        <View style={{ height: 110 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    header: { padding: 24 },
-    title: { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-    scrollContent: { paddingHorizontal: 24 },
-    sectionTitle: { fontSize: 13, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', marginTop: 24, marginBottom: 12 },
-    card: { padding: 20, borderRadius: 20 },
-    inputGroup: { marginBottom: 16 },
-    label: { fontSize: 12, fontWeight: '700', marginBottom: 8 },
-    input: { height: 48, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontSize: 15 },
-    settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    settingLabel: { fontSize: 15, fontWeight: '700' },
-    settingSub: { fontSize: 12, marginTop: 2 },
-    divider: { height: 1, marginVertical: 16 },
-    accountRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-    accountEmail: { fontSize: 15, fontWeight: '600' },
-    logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
-    logoutText: { fontWeight: '800', fontSize: 14 },
-    saveButton: { marginTop: 32, height: 56, borderRadius: 16 },
+  container:     { flex: 1 },
+  scroll:        { paddingHorizontal: 24 },
+  pageHeader:    { paddingTop: 8, marginBottom: 24 },
+  headerAccent:  { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
+  title:         { fontSize: 26, fontWeight: '900' },
+  profileCard:   { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20, borderRadius: 20, borderWidth: 1, marginBottom: 28 },
+  avatar:        { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },
+  avatarText:    { color: '#FFF', fontWeight: '900', fontSize: 18 },
+  profileName:   { fontSize: 16, fontWeight: '900' },
+  profileStore:  { fontSize: 12, fontWeight: '700', marginTop: 2 },
+  profileEmail:  { fontSize: 12, marginTop: 2 },
+  sectionTitle:  { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
+  group:         { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  settingRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
+  settingIcon:   { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  settingLabel:  { flex: 1, fontSize: 14, fontWeight: '600' },
+  settingRight:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  settingValue:  { fontSize: 13, maxWidth: 120 },
+  versionText:   { textAlign: 'center', fontSize: 12, marginTop: 32 },
 });

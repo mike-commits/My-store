@@ -1,192 +1,215 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+/**
+ * src/presenter/screens/ProductDetailsScreen.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Shows full details of a single product with:
+ *   - Animated slide-up entrance
+ *   - Product image (Supabase Storage URL) or placeholder icon
+ *   - Stock-level StatusBadge
+ *   - Detail rows: SKU, category, prices, quantity, description
+ *   - Sales history (last 10 sales for this product)
+ *   - Edit button → ProductFormScreen (when available)
+ * ─────────────────────────────────────────────────────────────
+ */
+
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, Animated,
+  Image, TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useStore } from '../../domain/useStore';
-import { Product, Sale, ShipmentItem } from '../../domain/models';
-import { Theme } from '../../core/theme';
-import { Card } from '../components/Card';
-import { AppButton } from '../components/AppButton';
-import { useAppTheme } from '../../core/contexts/ThemeContext';
+import { Feather } from '@expo/vector-icons';
+
+import { useStore }      from '../../domain/useStore';
+import { Sale, ShipmentItem } from '../../domain/models';
+import { useAppTheme }   from '../../core/contexts/ThemeContext';
+import { StatusBadge }   from '../../core/components/StatusBadge';
+import { BadgeStatus }   from '../../core/components/StatusBadge';
+import { AppButton }     from '../components/AppButton';
+
+function stockStatus(qty: number): BadgeStatus {
+  if (qty === 0) return 'danger';
+  if (qty < 10)  return 'warning';
+  return 'success';
+}
+
+function stockLabel(qty: number): string {
+  if (qty === 0) return 'Out of Stock';
+  if (qty < 10)  return 'Low Stock';
+  return 'In Stock';
+}
 
 export function ProductDetailsScreen({ route, navigation }: any) {
-    const { productId } = route.params;
-    const { products, getProductShipments, getProductSales } = useStore();
-    const { colors, isDark } = useAppTheme();
-    
-    const [shipments, setShipments] = useState<(ShipmentItem & { date: string })[]>([]);
-    const [sales, setSales] = useState<Sale[]>([]);
-    
-    const product = products.find(p => p.id === productId);
+  const { productId } = route.params;
+  const { products, getProductShipments, getProductSales } = useStore();
+  const { colors } = useAppTheme();
 
-    useEffect(() => {
-        const loadActivity = async () => {
-            if (productId) {
-                const [shipmentsData, salesData] = await Promise.all([
-                    getProductShipments(productId),
-                    getProductSales(productId)
-                ]);
-                setShipments(shipmentsData);
-                setSales(salesData);
-            }
-        };
-        loadActivity();
-    }, [productId, products, getProductShipments, getProductSales]);
+  const [shipments, setShipments] = useState<(ShipmentItem & { date: string })[]>([]);
+  const [sales,     setSales]     = useState<Sale[]>([]);
+  const [histLoading, setHistLoading] = useState(true);
 
-    if (!product) {
-        return (
-            <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
-                <Text style={{ color: colors.text }}>Product not found</Text>
-                <AppButton title="Go Back" onPress={() => navigation.goBack()} />
-            </View>
-        );
-    }
+  const product = products.find(p => p.id === productId);
 
-    const totalSold = sales.reduce((sum, s) => sum + s.quantity, 0);
-    const totalRevenue = sales.reduce((sum, s) => sum + (s.quantity * s.sell_price), 0);
-    const totalCost = totalSold * product.buy_price;
-    const estProfit = totalRevenue - totalCost;
+  // ── Animated entrance ──────────────────────────────────────
+  const translateY = useRef(new Animated.Value(60)).current;
+  const fadeIn     = useRef(new Animated.Value(0)).current;
 
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: 0, duration: 380, useNativeDriver: true }),
+      Animated.timing(fadeIn,     { toValue: 1, duration: 380, useNativeDriver: true }),
+    ]).start();
+  }, [translateY, fadeIn]);
+
+  // ── Load activity ──────────────────────────────────────────
+  useEffect(() => {
+    if (!productId) return;
+    (async () => {
+      setHistLoading(true);
+      try {
+        const [s, r] = await Promise.all([
+          getProductShipments(productId),
+          getProductSales(productId),
+        ]);
+        setShipments(s);
+        setSales(r.slice(0, 10));
+      } finally {
+        setHistLoading(false);
+      }
+    })();
+  }, [productId, getProductShipments, getProductSales]);
+
+  // ── Not found state ────────────────────────────────────────
+  if (!product) {
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={[styles.header, { backgroundColor: colors.surface }]}>
-                <AppButton title="←" type="ghost" onPress={() => navigation.goBack()} style={styles.backBtn} />
-                <View>
-                    <Text style={[styles.headerAccent, { color: colors.primary }]}>{product.category}</Text>
-                    <Text style={[styles.title, { color: colors.text }]}>{product.name}</Text>
-                </View>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                <View style={styles.statsRow}>
-                    <Card style={[styles.statCard, { backgroundColor: colors.primary }]}>
-                        <Text style={[styles.statLabel, { color: 'rgba(255,255,255,0.7)' }]}>STOCK</Text>
-                        <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{product.quantity}</Text>
-                        <Text style={[styles.statCaption, { color: 'rgba(255,255,255,0.8)' }]}>Units Available</Text>
-                    </Card>
-                    <Card style={[styles.statCard, { backgroundColor: colors.surface }]}>
-                        <Text style={[styles.statLabel, { color: colors.textMuted }]}>SOLD</Text>
-                        <Text style={[styles.statValue, { color: colors.text }]}>{totalSold}</Text>
-                        <Text style={[styles.statCaption, { color: colors.textSecondary }]}>Total Units</Text>
-                    </Card>
-                </View>
-
-                <Card style={[styles.financeCard, { backgroundColor: colors.surface }]}>
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Financial Performance</Text>
-                    <View style={styles.financeRow}>
-                        <View style={styles.financeItem}>
-                            <Text style={[styles.financeLabel, { color: colors.textMuted }]}>Total Revenue</Text>
-                            <Text style={[styles.financeValue, { color: colors.text }]}>SSP {totalRevenue.toLocaleString()}</Text>
-                        </View>
-                        <View style={styles.financeItem}>
-                            <Text style={[styles.financeLabel, { color: colors.textMuted }]}>Est. Profit</Text>
-                            <Text style={[styles.financeValue, { color: colors.success }]}>SSP {estProfit.toLocaleString()}</Text>
-                        </View>
-                    </View>
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                    <View style={styles.priceRow}>
-                        <View>
-                            <Text style={[styles.priceLabel, { color: colors.textMuted }]}>Buy Price</Text>
-                            <Text style={[styles.priceValue, { color: colors.textSecondary }]}>SSP {product.buy_price.toFixed(2)}</Text>
-                        </View>
-                        <View>
-                            <Text style={[styles.priceLabel, { color: colors.textMuted }]}>Sell Price</Text>
-                            <Text style={[styles.priceValue, { color: colors.textSecondary }]}>SSP {product.sell_price.toFixed(2)}</Text>
-                        </View>
-                        <View>
-                            <Text style={[styles.priceLabel, { color: colors.textMuted }]}>Margin</Text>
-                            <Text style={[styles.priceValue, { color: colors.secondary }]}>
-                                SSP {(product.sell_price - product.buy_price).toFixed(2)}
-                            </Text>
-                        </View>
-                    </View>
-                </Card>
-
-                <Text style={[styles.sectionHeader, { color: colors.text }]}>Activity History</Text>
-                
-                <View style={styles.historyContainer}>
-                    <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
-                        <Text style={[styles.activeTab, { borderBottomColor: colors.primary, color: colors.primary }]}>All Activity</Text>
-                    </View>
-
-                    {[...sales.map(s => ({ ...s, type: 'sale' })), ...shipments.map(s => ({ ...s, type: 'shipment' }))]
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .map((item: any, idx) => (
-                            <View key={idx} style={[styles.historyItem, { backgroundColor: colors.surface }]}>
-                                <View style={[styles.historyIcon, { backgroundColor: item.type === 'sale' ? (isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5') : (isDark ? 'rgba(99, 102, 241, 0.2)' : '#EEF2FF') }]}>
-                                    <Text>{item.type === 'sale' ? '💰' : '📦'}</Text>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.historyTitle, { color: colors.text }]}>
-                                        {item.type === 'sale' ? 'Sale Processed' : 'Stock Received'}
-                                    </Text>
-                                    <Text style={[styles.historyDate, { color: colors.textMuted }]}>{new Date(item.date).toLocaleDateString()}</Text>
-                                </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={[styles.historyQty, { color: item.type === 'sale' ? colors.error : colors.success }]}>
-                                        {item.type === 'sale' ? '-' : '+'}{item.quantity}
-                                    </Text>
-                                    <Text style={[styles.historyMeta, { color: colors.textMuted }]}>
-                                        {item.type === 'sale' ? `SSP ${item.sell_price.toFixed(0)}` : 'Inventory In'}
-                                    </Text>
-                                </View>
-                            </View>
-                        ))}
-                    
-                    {sales.length === 0 && shipments.length === 0 && (
-                        <Text style={[styles.emptyText, { color: colors.textMuted }]}>No activity recorded for this product.</Text>
-                    )}
-                </View>
-
-                <View style={{ height: 100 }} />
-            </ScrollView>
-        </SafeAreaView>
+      <View style={[styles.notFound, { backgroundColor: colors.background }]}>
+        <Feather name="alert-circle" size={40} color={colors.textMuted} />
+        <Text style={[styles.notFoundText, { color: colors.text }]}>Product not found</Text>
+        <AppButton title="Go Back" onPress={() => navigation.goBack()} />
+      </View>
     );
+  }
+
+  const totalSold    = sales.reduce((sum, s) => sum + s.quantity, 0);
+  const totalRevenue = sales.reduce((sum, s) => sum + s.quantity * s.sell_price, 0);
+  const estProfit    = totalRevenue - totalSold * product.buy_price;
+
+  const rows: { label: string; value: string }[] = [
+    { label: 'Category',   value: product.category },
+    { label: 'Buy Price',  value: `SSP ${product.buy_price.toFixed(2)}` },
+    { label: 'Sell Price', value: `SSP ${product.sell_price.toFixed(2)}` },
+    { label: 'Margin',     value: `SSP ${(product.sell_price - product.buy_price).toFixed(2)}` },
+    { label: 'Quantity',   value: product.quantity.toString() },
+    ...(product.notes ? [{ label: 'Notes', value: product.notes }] : []),
+  ];
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: colors.background }]}>
+          <Feather name="arrow-left" size={20} color={colors.text} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.headerCategory, { color: colors.primary }]}>{product.category}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{product.name}</Text>
+        </View>
+      </View>
+
+      <Animated.ScrollView
+        style={{ opacity: fadeIn, transform: [{ translateY }] }}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Image / Placeholder */}
+        {(product as any).image_url ? (
+          <Image source={{ uri: (product as any).image_url }} style={styles.productImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.imagePlaceholder, { backgroundColor: colors.border }]}>
+            <Feather name="image" size={48} color={colors.textMuted} />
+          </View>
+        )}
+
+        {/* Stock badge */}
+        <View style={styles.badgeRow}>
+          <StatusBadge status={stockStatus(product.quantity)} label={stockLabel(product.quantity)} size="md" />
+        </View>
+
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          {[
+            { label: 'In Stock',     val: product.quantity.toString(), color: colors.primary },
+            { label: 'Total Sold',   val: totalSold.toString(),        color: colors.success },
+            { label: 'Est. Profit',  val: `SSP ${estProfit.toFixed(0)}`, color: colors.secondary },
+          ].map(s => (
+            <View key={s.label} style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.statValue, { color: s.color }]}>{s.val}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{s.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Detail rows */}
+        <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {rows.map((r, i) => (
+            <View key={r.label} style={[styles.detailRow, i < rows.length - 1 && { borderBottomColor: colors.border, borderBottomWidth: 1 }]}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>{r.label}</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{r.value}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Sales history */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Sales History</Text>
+        {histLoading ? (
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>Loading…</Text>
+        ) : sales.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>No sales recorded for this product.</Text>
+        ) : (
+          sales.map((s, i) => (
+            <View key={s.id ?? i} style={[styles.histRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.histIcon, { backgroundColor: colors.success + '20' }]}>
+                <Feather name="dollar-sign" size={14} color={colors.success} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.histTitle, { color: colors.text }]}>Sale · {s.quantity} unit{s.quantity !== 1 ? 's' : ''}</Text>
+                <Text style={[styles.histDate,  { color: colors.textMuted }]}>{new Date(s.date).toLocaleDateString()}</Text>
+              </View>
+              <Text style={[styles.histAmount, { color: colors.primary }]}>SSP {(s.sell_price * s.quantity).toLocaleString()}</Text>
+            </View>
+          ))
+        )}
+
+        <View style={{ height: 110 }} />
+      </Animated.ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { 
-        paddingHorizontal: 20, 
-        paddingTop: 40, 
-        paddingBottom: 20, 
-        flexDirection: 'row', 
-        alignItems: 'center',
-        gap: 12
-    },
-    backBtn: { width: 40, height: 40, padding: 0 },
-    headerAccent: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
-    title: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-    content: { padding: 20 },
-    
-    statsRow: { flexDirection: 'row', gap: 16, marginBottom: 20 },
-    statCard: { flex: 1, padding: 20, borderRadius: 24 },
-    statLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-    statValue: { fontSize: 28, fontWeight: '900', marginVertical: 4 },
-    statCaption: { fontSize: 11, fontWeight: '600' },
-
-    financeCard: { padding: 24, borderRadius: 24 },
-    sectionTitle: { fontSize: 13, fontWeight: '900', letterSpacing: 0.5, marginBottom: 20, textTransform: 'uppercase' },
-    financeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-    financeItem: { flex: 1 },
-    financeLabel: { fontSize: 11, marginBottom: 4, fontWeight: '600' },
-    financeValue: { fontSize: 18, fontWeight: '900' },
-    divider: { height: 1, marginVertical: 16 },
-    priceRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    priceLabel: { fontSize: 9, textTransform: 'uppercase', marginBottom: 4, fontWeight: 'bold' },
-    priceValue: { fontSize: 14, fontWeight: '800' },
-
-    sectionHeader: { fontSize: 15, fontWeight: '900', marginTop: 32, marginBottom: 16 },
-    historyContainer: { gap: 12 },
-    tabs: { flexDirection: 'row', borderBottomWidth: 1, marginBottom: 8 },
-    activeTab: { paddingBottom: 8, borderBottomWidth: 2, fontWeight: '900', fontSize: 12 },
-    
-    historyItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, gap: 12 },
-    historyIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    historyTitle: { fontSize: 13, fontWeight: '800' },
-    historyDate: { fontSize: 11, marginTop: 2 },
-    historyQty: { fontSize: 14, fontWeight: '900' },
-    historyMeta: { fontSize: 10, marginTop: 2, fontWeight: '600' },
-    
-    emptyText: { textAlign: 'center', marginTop: 40, fontStyle: 'italic' }
+  container:        { flex: 1 },
+  notFound:         { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  notFoundText:     { fontSize: 16, fontWeight: '700' },
+  header:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, gap: 12, borderBottomWidth: 1 },
+  backBtn:          { width: 38, height: 38, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  headerCategory:   { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
+  headerTitle:      { fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  scroll:           { padding: 20 },
+  productImage:     { width: '100%', height: 220, borderRadius: 20, marginBottom: 16 },
+  imagePlaceholder: { width: '100%', height: 180, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  badgeRow:         { marginBottom: 20 },
+  statsRow:         { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  statCard:         { flex: 1, borderRadius: 16, borderWidth: 1, padding: 14, alignItems: 'center' },
+  statValue:        { fontSize: 16, fontWeight: '900', marginBottom: 4 },
+  statLabel:        { fontSize: 10, fontWeight: '700' },
+  detailCard:       { borderRadius: 20, borderWidth: 1, marginBottom: 28, overflow: 'hidden' },
+  detailRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14 },
+  detailLabel:      { fontSize: 12, fontWeight: '600' },
+  detailValue:      { fontSize: 13, fontWeight: '800' },
+  sectionTitle:     { fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  histRow:          { flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8, gap: 12 },
+  histIcon:         { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  histTitle:        { fontSize: 13, fontWeight: '700' },
+  histDate:         { fontSize: 11, marginTop: 2 },
+  histAmount:       { fontSize: 13, fontWeight: '900' },
+  emptyText:        { fontSize: 13, fontStyle: 'italic' },
 });
