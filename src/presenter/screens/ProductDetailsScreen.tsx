@@ -14,16 +14,25 @@ export function ProductDetailsScreen() {
   const { colors, isDark } = useAppTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const productId = route.params?.productId;
+  const rawId = route.params?.productId;
+  const productId = typeof rawId === 'string' ? parseInt(rawId, 10) : rawId;
 
-  const product = useMemo(() => products.find(p => p.id === productId), [products, productId]);
+  console.log('[ProductDetails] Opening ID:', productId, 'Type:', typeof productId);
 
-  const productSales = useMemo(() => 
-    sales.filter(s => s.product_id === productId)
-         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-  [sales, productId]);
+  const product = useMemo(() => 
+    products.find(p => Number(p.id) === Number(productId)), 
+  [products, productId]);
 
-  const totalSold = productSales.reduce((acc, s) => acc + s.quantity, 0);
+  const productSales = useMemo(() => {
+    if (!sales) return [];
+    return sales
+      .filter(s => Number(s.product_id) === Number(productId))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [sales, productId]);
+
+  const totalSold = useMemo(() => 
+    productSales.reduce((acc, s) => acc + (Number(s.quantity) || 0), 0),
+  [productSales]);
 
   const handleDelete = () => {
     Alert.alert('Delete Product', 'Are you sure? This will remove all inventory records for this item.', [
