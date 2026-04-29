@@ -1,0 +1,31 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.8.0
+2 info using node@v25.6.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\Mike\Desktop\My_Projects\My_Store\app\.npmrc
+5 silly config load:file:C:\Users\Mike\.npmrc
+6 silly config load:file:C:\Users\Mike\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--cache" ".npm-local-cache" "--prefer-offline" "--no-audit"
+9 verbose logfile logs-max:10 dir:C:\Users\Mike\Desktop\My_Projects\My_Store\app\.npm-local-cache\_logs\2026-04-29T08_34_37_626Z-
+10 verbose logfile C:\Users\Mike\Desktop\My_Projects\My_Store\app\.npm-local-cache\_logs\2026-04-29T08_34_37_626Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:2348810240 maxSize:587202560 maxEntrySize:293601280
+13 verbose shrinkwrap failed to load node_modules/.package-lock.json out of date, updated: node_modules
+14 http fetch GET 200 https://registry.npmjs.org/npm 2631ms
+15 verbose shrinkwrap failed to load node_modules/.package-lock.json out of date, updated: node_modules
+16 silly idealTree buildDeps
+17 silly fetch manifest @expo/vector-icons@~14.0.4
+18 silly packumentCache full:https://registry.npmjs.org/@expo%2fvector-icons cache-miss
+19 http fetch GET 200 https://registry.npmjs.org/@expo%2fvector-icons 469ms (cache miss)
+20 silly packumentCache full:https://registry.npmjs.org/@expo%2fvector-icons set size:undefined disposed:false
+21 silly fetch manifest react-native@0.76.9
+22 silly packumentCache full:https://registry.npmjs.org/react-native cache-miss
+23 http fetch GET 200 https://registry.npmjs.org/react-native 5098ms (cache miss)
+24 silly packumentCache full:https://registry.npmjs.org/react-native set size:undefined disposed:false
+25 silly fetch manifest @types/react@~18.3.12
+26 silly packumentCache full:https://registry.npmjs.org/@types%2freact cache-miss
+27 http fetch GET 200 https://registry.npmjs.org/@types%2freact 32613ms (cache miss)
+28 silly packumentCache full:https://registry.npmjs.org/@types%2freact set size:undefined disposed:false
+29 silly fetch manifest react@18.3.1
+30 silly packumentCache full:https://registry.npmjs.org/react cache-miss
