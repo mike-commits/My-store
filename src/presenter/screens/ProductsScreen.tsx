@@ -93,7 +93,7 @@ export function ProductsScreen() {
         </View>
       ) : error ? ( 
         <View style={styles.center}>
-          <Text style={{ color: colors.error }}>Failed to load products</Text>
+          <Text style={{ color: colors.error, textAlign: 'center', marginBottom: 8 }}>{error}</Text>
           <TouchableOpacity onPress={refreshAll} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.text }}>Retry</Text></TouchableOpacity>
         </View>
       ) : (

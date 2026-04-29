@@ -32,10 +32,10 @@ export class ProductRepository {
     }
 
     async addProduct(product: Omit<Product, 'id'>) {
-        const { name, category, buy_price, sell_price, quantity, date, notes } = product;
+        const { name, category, buy_price, sell_price, quantity, date, notes, user_id } = product as any;
         const { data, error } = await supabase
             .from('products')
-            .insert([{ name, category, buy_price, sell_price, quantity, date, notes }])
+            .insert([{ name, category, buy_price, sell_price, quantity, date, notes, user_id }])
             .select()
             .single();
         
@@ -44,10 +44,10 @@ export class ProductRepository {
     }
 
     async updateProduct(product: Product) {
-        const { id, name, category, buy_price, sell_price, quantity, date, notes } = product;
+        const { id, name, category, buy_price, sell_price, quantity, date, notes, user_id } = product as any;
         const { error } = await supabase
             .from('products')
-            .update({ name, category, buy_price, sell_price, quantity, date, notes })
+            .update({ name, category, buy_price, sell_price, quantity, date, notes, user_id })
             .eq('id', id);
         
         if (error) throw error;
