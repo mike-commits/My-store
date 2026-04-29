@@ -60,24 +60,25 @@ export function AuthScreen() {
         const { error: authErr } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (authErr) throw authErr;
       } else {
-        const { data, error: signUpErr } = await supabase.auth.signUp({ email: email.trim(), password });
-        if (signUpErr) throw signUpErr;
-
-        // Create user_profiles row
-        if (data?.user?.id) {
-          const { error: profileErr } = await supabase
-            .from('user_profiles')
-            .insert({
-              id:         data.user.id,
+        const { data, error: signUpErr } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
               full_name:  fullName.trim(),
               store_name: storeName.trim(),
-              role:       'owner',
-            });
-          if (profileErr) console.error('[AuthScreen] Profile insert:', profileErr.message);
-        }
+            },
+          },
+        });
+        if (signUpErr) throw signUpErr;
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Authentication failed.';
+      if (mode === 'signup') {
+        Alert.alert('Success', 'Account created! If you have email confirmation enabled, please check your inbox before logging in.');
+        setMode('signin');
+      }
+    } catch (err: any) {
+      console.error('[AuthScreen] Error:', err);
+      const msg = err.message || err.error_description || 'Authentication failed.';
       setError(msg);
     } finally {
       setLoading(false);

@@ -27,6 +27,10 @@ CREATE POLICY IF NOT EXISTS "user_profiles_update_own"
   ON user_profiles FOR UPDATE
   USING (auth.uid() = id);
 
+CREATE POLICY IF NOT EXISTS "user_profiles_insert_own"
+  ON user_profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
 -- ── products ──────────────────────────────────────────────
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 
