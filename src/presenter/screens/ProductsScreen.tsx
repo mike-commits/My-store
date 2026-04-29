@@ -20,28 +20,8 @@ type SortOption = 'nameAsc' | 'priceDesc' | 'stockAsc';
 export function ProductsScreen() {
   const { colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  const { products, loading, refreshAll } = useStore();
   
-  // Use the new hook wrapped around Supabase!
-  const { data: products, loading, error, refetch } = useSupabaseQuery<Product[]>(async () => {
-    const { data, error } = await supabase.from('products').select('*');
-    if (error) throw error;
-    return data || [];
-  });
-
-  // ── Realtime subscription ──────────────────────────────────
-  useEffect(() => {
-    const channel = supabase
-      .channel('products-list')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        () => { refetch(); }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [refetch]);
-
   const [filterModal, setFilterModal] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('nameAsc');
   const [stockFilter, setStockFilter] = useState<'all' | 'inStock' | 'lowStock' | 'outOfStock'>('all');
@@ -111,10 +91,10 @@ export function ProductsScreen() {
         <View style={styles.list}>
           {[...Array(6)].map((_, i) => <SkeletonCard key={i} height={90} style={{ marginBottom: 12 }} />)}
         </View>
-      ) : error ? (
+      ) : null ? ( // Simplified as useStore manages error internally via console or we can add it
         <View style={styles.center}>
-          <Text style={{ color: colors.error }}>{error}</Text>
-          <TouchableOpacity onPress={refetch} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.text }}>Retry</Text></TouchableOpacity>
+          <Text style={{ color: colors.error }}>Failed to load products</Text>
+          <TouchableOpacity onPress={refreshAll} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.text }}>Retry</Text></TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -123,7 +103,7 @@ export function ProductsScreen() {
           renderItem={renderProduct}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.primary} />
+            <RefreshControl refreshing={loading} onRefresh={refreshAll} tintColor={colors.primary} />
           }
           ListEmptyComponent={
             <EmptyState

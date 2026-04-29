@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -10,7 +10,7 @@ import { Card }        from '../components/Card';
 import { StockBadge }  from '../../core/components/StockBadge';
 
 export function ProductDetailsScreen() {
-  const { products, sales } = useStore();
+  const { products, sales, deleteProduct } = useStore();
   const { colors, isDark } = useAppTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -24,6 +24,16 @@ export function ProductDetailsScreen() {
   [sales, productId]);
 
   const totalSold = productSales.reduce((acc, s) => acc + s.quantity, 0);
+
+  const handleDelete = () => {
+    Alert.alert('Delete Product', 'Are you sure? This will remove all inventory records for this item.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+          await deleteProduct(productId);
+          navigation.goBack();
+      }},
+    ]);
+  };
 
   if (!product) {
     return (
@@ -39,12 +49,18 @@ export function ProductDetailsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { borderColor: colors.border }]}>
-          <Feather name="arrow-left" size={20} color={colors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('ProductForm', { productId })} style={[styles.editBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Feather name="edit-2" size={16} color={colors.primary} />
-          <Text style={[styles.editBtnText, { color: colors.primary }]}>Edit</Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { borderColor: colors.border }]}>
+            <Feather name="arrow-left" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ProductForm', { productId })} style={[styles.editBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Feather name="edit-2" size={16} color={colors.primary} />
+            <Text style={[styles.editBtnText, { color: colors.primary }]}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <TouchableOpacity onPress={handleDelete} style={[styles.deleteBtn, { borderColor: colors.error }]}>
+          <Feather name="trash-2" size={18} color={colors.error} />
         </TouchableOpacity>
       </View>
 
@@ -105,6 +121,7 @@ const styles = StyleSheet.create({
   backBtn:          { width: 44, height: 44, borderRadius: 22, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   editBtn:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1 },
   editBtnText:      { fontWeight: '700', fontSize: 13 },
+  deleteBtn:        { width: 44, height: 44, borderRadius: 22, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   scroll:           { paddingHorizontal: 24, paddingBottom: 60 },
   heroSection:      { marginBottom: 24 },
   imagePlaceholder: { height: 220, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
