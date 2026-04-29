@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -47,6 +48,7 @@ export function ReportsScreen() {
     addManualReport, deleteManualReport, refreshAll,
   } = useStore();
   const { colors, isDark } = useAppTheme();
+  const navigation = useNavigation<any>();
 
   const [range,        setRange]        = useState<DateRange>('month');
   const [refreshing,   setRefreshing]   = useState(false);
@@ -183,7 +185,10 @@ export function ReportsScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { borderColor: colors.border }]}>
+            <Feather name="arrow-left" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginLeft: 16 }}>
             <Text style={[styles.headerAccent, { color: colors.primary }]}>ANALYTICS</Text>
             <Text style={[styles.title, { color: colors.text }]}>Reports</Text>
           </View>
@@ -390,6 +395,7 @@ const styles = StyleSheet.create({
   header:        { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
   headerAccent:  { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
   title:         { fontSize: 26, fontWeight: '900' },
+  backBtn:       { width: 44, height: 44, borderRadius: 22, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   shareBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   shareBtnText:  { fontSize: 12, fontWeight: '800' },
   heroCard:      { padding: 24, borderRadius: 24, marginBottom: 20 },
