@@ -106,12 +106,12 @@ export function CustomersScreen() {
       <SearchBar value={searchQuery} onChangeText={setSearchQuery} placeholder="Search customers..." />
 
       <FlatList
-        data={loading ? [1,2,3,4,5] : filtered}
-        keyExtractor={(item, index) => (typeof item === 'number' ? index.toString() : item.id.toString())}
-        renderItem={loading ? () => <SkeletonCard /> : renderItem}
+        data={loading ? [] : filtered}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderItem}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        ListEmptyComponent={!loading && <EmptyState icon="users" title="No customers found" message="Add your first customer to track their purchase history." />}
+        ListEmptyComponent={!loading ? <EmptyState icon="users" title="No customers found" subtitle="Add your first customer to track their purchase history." /> : null}
       />
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">

@@ -123,10 +123,29 @@ export const useStore = () => {
         await refreshAll();
     };
 
-    const addShipment = async (date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) => {
+    const addShipment = async (supplierName: string, totalCost: number, date: string, status: string) => {
         const { data: { user } } = await supabase.auth.getUser();
-        const userId = user?.id;
-        await shipmentRepo.addShipment(date, status, items, shippingCost, description, weightKg);
+        if (!user) throw new Error("Auth required");
+        
+        const { error } = await supabase.from('shipments').insert([{
+            supplier_name: supplierName,
+            total_cost: totalCost,
+            date,
+            status,
+            user_id: user.id
+        }]);
+        
+        if (error) throw error;
+        await refreshAll();
+    };
+
+    const updateShipmentStatus = async (id: number, status: string) => {
+        const { error } = await supabase
+            .from('shipments')
+            .update({ status })
+            .eq('id', id);
+        
+        if (error) throw error;
         await refreshAll();
     };
 
@@ -234,6 +253,7 @@ export const useStore = () => {
         updateProduct,
         deleteProduct,
         addShipment,
+        updateShipmentStatus,
         getProductShipments,
         getProductSales,
         deleteShipment: async (id: number) => {

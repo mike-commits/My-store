@@ -1,15 +1,3 @@
-/**
- * src/presenter/screens/DashboardScreen.tsx
- * ─────────────────────────────────────────────────────────────
- * Main dashboard with KPI metric cards, recent sales list,
- * low-stock alerts, and a Supabase Realtime subscription that
- * auto-refreshes on new sales.
- *
- * States handled: loading (SkeletonLoader cards), error (inline
- * alert), and empty (zero-state text inside each section).
- * ─────────────────────────────────────────────────────────────
- */
-
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -23,7 +11,7 @@ import { useStore }      from '../../domain/useStore';
 import { useAppTheme }   from '../../core/contexts/ThemeContext';
 import { useAuth }       from '../../core/contexts/AuthContext';
 import { supabase }      from '../../data/supabase';
-import { SkeletonCard }  from '../../core/components/SkeletonLoader';
+import { SkeletonCard }  from '../../core/components/SkeletonCard';
 import { QuickProductModal } from '../components/QuickProductModal';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -51,7 +39,7 @@ function getInitials(fullName: string | null | undefined): string {
 // ── Component ─────────────────────────────────────────────────
 export function DashboardScreen() {
   const { products, sales, stats, refreshAll, addProduct, loading } = useStore();
-  const { colors, isDark, toggleTheme } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const [productModalVisible, setProductModalVisible] = React.useState(false);
@@ -80,7 +68,7 @@ export function DashboardScreen() {
     return {
       totalProducts:    products.length,
       salesToday:       salesToday.reduce((sum, s) => sum + s.sell_price * s.quantity, 0),
-      pendingShipments: 0, // shipments table uses 'delivered' status historically
+      pendingShipments: 0, 
       revenueThisMonth: salesThisMonth.reduce((sum, s) => sum + s.sell_price * s.quantity, 0),
     };
   }, [products, sales, today, monthStart]);
@@ -105,23 +93,35 @@ export function DashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
+      {/* Header Redesign */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.storeName, { color: colors.primary }]}>{storeName.toUpperCase()}</Text>
-          <Text style={[styles.greeting, { color: colors.text }]}>{getGreeting(firstName)}</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Feather name="settings" size={20} color={colors.text} />
-          </TouchableOpacity>
+        <View style={styles.headerTop}>
+          <Text style={[styles.storeName, { color: colors.text }]}>{storeName}</Text>
           <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
         </View>
+        <Text style={[styles.greeting, { color: colors.textMuted }]}>{getGreeting(firstName)}</Text>
+        
+        {/* Horizontal scrollable row of quick-action chips */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
+          <TouchableOpacity style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setProductModalVisible(true)}>
+            <Feather name="plus" size={16} color={colors.primary} />
+            <Text style={[styles.chipText, { color: colors.text }]}>Product</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Sales')}>
+            <Feather name="dollar-sign" size={16} color={colors.success} />
+            <Text style={[styles.chipText, { color: colors.text }]}>Sale</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Shipments')}>
+            <Feather name="truck" size={16} color={colors.warning} />
+            <Text style={[styles.chipText, { color: colors.text }]}>Shipment</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Reports')}>
+            <Feather name="pie-chart" size={16} color={colors.secondary} />
+            <Text style={[styles.chipText, { color: colors.text }]}>Reports</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -130,10 +130,10 @@ export function DashboardScreen() {
 
         {loading ? (
           <View style={styles.kpiGrid}>
-            <SkeletonCard style={styles.kpiCard} />
-            <SkeletonCard style={styles.kpiCard} />
-            <SkeletonCard style={styles.kpiCard} />
-            <SkeletonCard style={styles.kpiCard} />
+            <SkeletonCard style={styles.kpiCard} height={110} />
+            <SkeletonCard style={styles.kpiCard} height={110} />
+            <SkeletonCard style={styles.kpiCard} height={110} />
+            <SkeletonCard style={styles.kpiCard} height={110} />
           </View>
         ) : (
           <View style={styles.kpiGrid}>
@@ -149,24 +149,8 @@ export function DashboardScreen() {
           </View>
         )}
 
-        {/* ── Quick Actions ── */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setProductModalVisible(true)}>
-            <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}><Feather name="plus" size={18} color="#FFF" /></View>
-            <Text style={[styles.actionLabel, { color: colors.text }]}>Add Item</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Sales')}>
-            <View style={[styles.actionIcon, { backgroundColor: colors.success }]}><Feather name="dollar-sign" size={18} color="#FFF" /></View>
-            <Text style={[styles.actionLabel, { color: colors.text }]}>New Sale</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigation.navigate('Shipments')}>
-            <View style={[styles.actionIcon, { backgroundColor: colors.warning }]}><Feather name="truck" size={18} color="#FFF" /></View>
-            <Text style={[styles.actionLabel, { color: colors.text }]}>Shipment</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* ── Low Stock Alert ── */}
-        {lowStock.length > 0 && (
+        {!loading && lowStock.length > 0 && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Low Stock Alert</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.lowStockRow}>
@@ -187,7 +171,10 @@ export function DashboardScreen() {
         {/* ── Recent Sales ── */}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 28 }]}>Recent Sales</Text>
         {loading ? (
-          <SkeletonCard />
+          <View style={{ gap: 8 }}>
+             <SkeletonCard height={70} />
+             <SkeletonCard height={70} />
+          </View>
         ) : recentSales.length === 0 ? (
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>No sales recorded yet.</Text>
         ) : (
@@ -204,15 +191,6 @@ export function DashboardScreen() {
           ))
         )}
 
-        {/* ── Reports Link ── */}
-        <TouchableOpacity
-          style={[styles.reportsBtn, { backgroundColor: colors.primary }]}
-          onPress={() => navigation.navigate('Reports')}
-        >
-          <Text style={styles.reportsBtnText}>View Business Reports</Text>
-          <Feather name="chevron-right" size={18} color="#FFF" />
-        </TouchableOpacity>
-
         <View style={{ height: 110 }} />
       </ScrollView>
 
@@ -227,13 +205,16 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container:     { flex: 1 },
-  header:        { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' },
-  storeName:     { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
-  greeting:      { fontSize: 22, fontWeight: '900' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBtn:       { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  header:        { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 },
+  headerTop:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  storeName:     { fontSize: 22, fontWeight: 'bold' },
   avatar:        { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   avatarText:    { color: '#FFF', fontWeight: '900', fontSize: 14 },
+  greeting:      { fontSize: 14, marginTop: 4, marginBottom: 16 },
+  chipScroll:    { flexGrow: 0 },
+  chipRow:       { gap: 10, paddingRight: 24 },
+  chip:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, gap: 6 },
+  chipText:      { fontSize: 13, fontWeight: '700' },
   scroll:        { paddingHorizontal: 24 },
   sectionTitle:  { fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
   kpiGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
@@ -241,10 +222,6 @@ const styles = StyleSheet.create({
   kpiIconBox:    { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   kpiValue:      { fontSize: 20, fontWeight: '900' },
   kpiLabel:      { fontSize: 11, fontWeight: '600' },
-  actionRow:     { flexDirection: 'row', gap: 12, marginBottom: 28 },
-  actionBtn:     { flex: 1, borderRadius: 16, padding: 14, alignItems: 'center', gap: 8, borderWidth: 1 },
-  actionIcon:    { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  actionLabel:   { fontSize: 11, fontWeight: '800' },
   lowStockRow:   { marginBottom: 8 },
   lowStockChip:  { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8, marginRight: 10, minWidth: 90 },
   lowStockName:  { fontSize: 12, fontWeight: '800' },
@@ -254,6 +231,4 @@ const styles = StyleSheet.create({
   saleTime:      { fontSize: 11, marginTop: 2 },
   saleAmount:    { fontSize: 14, fontWeight: '900' },
   emptyText:     { fontSize: 13, fontStyle: 'italic', marginBottom: 12 },
-  reportsBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, borderRadius: 16, marginTop: 20 },
-  reportsBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
 });

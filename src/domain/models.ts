@@ -14,7 +14,9 @@ export interface Product {
 export interface Shipment {
     id: number;
     date: string;
-    status: 'pending' | 'delivered';
+    status: 'pending' | 'shipped' | 'delivered';
+    supplier_name?: string;
+    total_cost?: number;
     shipping_cost?: number;
     description?: string;
     weight_kg?: number;

@@ -1,157 +1,220 @@
-/**
- * src/presenter/screens/ProductsScreen.tsx
- * Full product list with search, category filter, StatusBadge stock levels,
- * loading skeletons, empty state, and add/edit modal.
- */
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, Alert,
-  TouchableOpacity, Image, RefreshControl,
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  Modal, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-import { useStore }      from '../../domain/useStore';
-import { Product }       from '../../domain/models';
 import { useAppTheme }   from '../../core/contexts/ThemeContext';
-import { StatusBadge, BadgeStatus }   from '../../core/components/StatusBadge';
-import { SkeletonCard }  from '../../core/components/SkeletonLoader';
-import { EmptyState }    from '../../core/components/EmptyState';
-import { Card }          from '../components/Card';
-import { AppButton }     from '../components/AppButton';
-import { SearchBar }     from '../components/SearchBar';
-import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
-import { ProductSchema } from '../../domain/validation';
+import { useSupabaseQuery } from '../../core/hooks/useSupabaseQuery';
+import { supabase } from '../../data/supabase';
+import { SkeletonCard } from '../../core/components/SkeletonCard';
+import { EmptyState } from '../../core/components/EmptyState';
+import { StockBadge } from '../../core/components/StockBadge';
+import { Product } from '../../domain/models';
 
-const CATEGORIES = [
-  'All', 'Shoes (Men)', 'Shoes (Women)', 'Shoes (Kids)',
-  'Clothing (Men)', 'Clothing (Women)', 'Clothing (Kids)',
-  'Jewelry', 'Accessories', 'Others',
-];
-
-function qtyStatus(qty: number): BadgeStatus {
-  if (qty === 0) return 'danger';
-  if (qty <= 10) return 'warning';
-  return 'success';
-}
+type SortOption = 'nameAsc' | 'priceDesc' | 'stockAsc';
 
 export function ProductsScreen() {
-  const { products, addProduct, updateProduct, deleteProduct, loading, refreshAll } = useStore();
   const { colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  
+  // Use the new hook wrapped around Supabase!
+  const { data: products, loading, error, refetch } = useSupabaseQuery<Product[]>(async () => {
+    const { data, error } = await supabase.from('products').select('*');
+    if (error) throw error;
+    return data || [];
+  });
 
-  const [scannerVisible, setScannerVisible] = useState(false);
-  const [searchQuery,    setSearchQuery]    = useState('');
-  const [selectedCat,    setSelectedCat]    = useState('All');
-  const [refreshing,     setRefreshing]     = useState(false);
+  // ── Realtime subscription ──────────────────────────────────
+  useEffect(() => {
+    const channel = supabase
+      .channel('products-list')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => { refetch(); }
+      )
+      .subscribe();
 
-  const handleDelete = (id: number) => {
-    Alert.alert('Delete', 'Delete this product and all its records?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteProduct(id) },
-    ]);
-  };
+    return () => { supabase.removeChannel(channel); };
+  }, [refetch]);
 
-  const onRefresh = async () => { setRefreshing(true); await refreshAll(); setRefreshing(false); };
+  const [filterModal, setFilterModal] = useState(false);
+  const [sortOption, setSortOption] = useState<SortOption>('nameAsc');
+  const [stockFilter, setStockFilter] = useState<'all' | 'inStock' | 'lowStock' | 'outOfStock'>('all');
 
-  const filtered = useMemo(() =>
-    products.filter(p => {
-      const q = searchQuery.toLowerCase();
-      return (p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)) &&
-             (selectedCat === 'All' || p.category === selectedCat);
-    }).sort((a, b) => b.id - a.id),
-    [products, searchQuery, selectedCat]
-  );
+  // Sort & Filter logic
+  const processedProducts = useMemo(() => {
+    let list = [...(products || [])];
 
-  const renderItem = ({ item }: { item: Product }) => (
-    <Card style={styles.productCard} onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}>
-      <View style={styles.cardRow}>
-        {(item as any).image_url
-          ? <Image source={{ uri: (item as any).image_url }} style={styles.productImage} />
-          : <View style={[styles.imgPlaceholder, { backgroundColor: colors.border }]}><Feather name="image" size={20} color={colors.textMuted} /></View>
-        }
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[styles.productName, { color: colors.text }]}>{item.name}</Text>
-          <Text style={[styles.categoryText, { color: colors.textMuted }]}>{item.category}</Text>
-          <Text style={[styles.priceText, { color: colors.primary }]}>SSP {item.sell_price.toLocaleString()}</Text>
-        </View>
-        <View style={styles.cardRight}>
-          <StatusBadge status={qtyStatus(item.quantity)} label={`${item.quantity}`} size="sm" />
-          <View style={styles.cardActions}>
-            <TouchableOpacity onPress={() => navigation.navigate('ProductForm', { productId: item.id })} style={styles.cardActionBtn}><Feather name="edit-2" size={14} color={colors.primary} /></TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.cardActionBtn}><Feather name="trash-2" size={14} color={colors.error} /></TouchableOpacity>
-          </View>
-        </View>
+    if (stockFilter === 'inStock') list = list.filter(p => p.quantity > 10);
+    if (stockFilter === 'lowStock') list = list.filter(p => p.quantity > 0 && p.quantity <= 10);
+    if (stockFilter === 'outOfStock') list = list.filter(p => p.quantity === 0);
+
+    list.sort((a, b) => {
+      if (sortOption === 'nameAsc') return a.name.localeCompare(b.name);
+      if (sortOption === 'priceDesc') return b.sell_price - a.sell_price;
+      if (sortOption === 'stockAsc') return a.quantity - b.quantity;
+      return 0;
+    });
+
+    return list;
+  }, [products, sortOption, stockFilter]);
+
+  const activeFilters = (stockFilter !== 'all' ? 1 : 0);
+
+  const renderProduct = ({ item }: { item: Product }) => (
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
+    >
+      <View style={styles.cardInfo}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name}</Text>
+        <Text style={[styles.cardPrice, { color: colors.primary }]}>SSP {item.sell_price.toLocaleString()}</Text>
+        <StockBadge qty={item.quantity} />
       </View>
-    </Card>
+      <Feather name="chevron-right" size={20} color={colors.textMuted} />
+    </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View style={styles.header}>
-        <View><Text style={[styles.headerAccent, { color: colors.primary }]}>INVENTORY</Text>
-        <Text style={[styles.title, { color: colors.text }]}>Products</Text></View>
-        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('ProductForm')}>
-          <Feather name="plus" size={20} color="#FFF" />
-        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]}>Products</Text>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setFilterModal(true)}
+          >
+            <Feather name="sliders" size={20} color={colors.text} />
+            {activeFilters > 0 && (
+              <View style={[styles.badgeContainer, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>{activeFilters}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.navigate('ProductForm')}
+          >
+            <Feather name="plus" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <SearchBar value={searchQuery} onChangeText={setSearchQuery} onBarcodePress={() => setScannerVisible(true)} />
-
-      <FlatList
-        horizontal showsHorizontalScrollIndicator={false} data={CATEGORIES} keyExtractor={i => i}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => setSelectedCat(item)}
-            style={[styles.chip, { borderColor: colors.border }, selectedCat === item ? { backgroundColor: colors.primary } : { backgroundColor: colors.surface }]}>
-            <Text style={[styles.chipText, { color: selectedCat === item ? '#FFF' : colors.textSecondary }]}>{item}</Text>
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.chipBar} style={{ marginBottom: 16 }}
-      />
-
-      {loading ? (
-        <View style={{ padding: 24, gap: 12 }}>{[1,2,3,4,5,6].map(i => <SkeletonCard key={i} />)}</View>
+      {/* Content */}
+      {loading && !products ? (
+        <View style={styles.list}>
+          {[...Array(6)].map((_, i) => <SkeletonCard key={i} height={90} style={{ marginBottom: 12 }} />)}
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={{ color: colors.error }}>{error}</Text>
+          <TouchableOpacity onPress={refetch} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.text }}>Retry</Text></TouchableOpacity>
+        </View>
       ) : (
         <FlatList
-          data={filtered} keyExtractor={p => p.id.toString()} renderItem={renderItem}
+          data={processedProducts}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderProduct}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.primary} />
+          }
           ListEmptyComponent={
-            <EmptyState icon="box"
-              title={searchQuery ? 'No Matches' : 'Empty Inventory'}
-              subtitle={searchQuery ? 'Try a different search term.' : 'Add your first product to get started.'}
-              actionLabel={searchQuery ? 'Clear Search' : 'Add Product'}
-              onAction={() => searchQuery ? setSearchQuery('') : setModalVisible(true)}
+            <EmptyState
+              icon="box"
+              title="No products yet"
+              subtitle="Start building your inventory to track sales and stock."
+              actionLabel="Add Product"
+              onAction={() => navigation.navigate('ProductForm')}
             />
           }
         />
       )}
 
-      <BarcodeScannerModal visible={scannerVisible} onClose={() => setScannerVisible(false)} onScan={d => { setSearchQuery(d); setScannerVisible(false); }} />
+      {/* Filter Bottom Sheet */}
+      <Modal visible={filterModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Sort & Filter</Text>
+              <TouchableOpacity onPress={() => setFilterModal(false)}>
+                <Feather name="x" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.filterLabel, { color: colors.textMuted }]}>SORT BY</Text>
+            <View style={styles.filterRow}>
+              {[
+                { key: 'nameAsc', label: 'Name A-Z' },
+                { key: 'priceDesc', label: 'Price High-Low' },
+                { key: 'stockAsc', label: 'Stock Low-High' },
+              ].map(opt => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.filterChip, { borderColor: colors.border, backgroundColor: sortOption === opt.key ? colors.primary + '20' : 'transparent' }]}
+                  onPress={() => setSortOption(opt.key as SortOption)}
+                >
+                  <Text style={{ color: sortOption === opt.key ? colors.primary : colors.text, fontWeight: '600' }}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.filterLabel, { color: colors.textMuted }]}>STOCK STATUS</Text>
+            <View style={styles.filterRow}>
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'inStock', label: 'In Stock' },
+                { key: 'lowStock', label: 'Low Stock' },
+                { key: 'outOfStock', label: 'Out of Stock' },
+              ].map(opt => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.filterChip, { borderColor: colors.border, backgroundColor: stockFilter === opt.key ? colors.primary + '20' : 'transparent' }]}
+                  onPress={() => setStockFilter(opt.key as any)}
+                >
+                  <Text style={{ color: stockFilter === opt.key ? colors.primary : colors.text, fontWeight: '600' }}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <TouchableOpacity style={[styles.applyBtn, { backgroundColor: colors.primary }]} onPress={() => setFilterModal(false)}>
+              <Text style={styles.applyBtnText}>Apply Options</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerAccent: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingBottom: 16 },
   title: { fontSize: 26, fontWeight: '900' },
-  addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  chipBar: { paddingHorizontal: 24 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, marginRight: 8, borderWidth: 1 },
-  chipText: { fontSize: 12, fontWeight: '700' },
-  list: { paddingHorizontal: 24, paddingBottom: 100 },
-  productCard: { marginBottom: 12, padding: 12 },
-  cardRow: { flexDirection: 'row', alignItems: 'center' },
-  productImage: { width: 58, height: 58, borderRadius: 12 },
-  imgPlaceholder: { width: 58, height: 58, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  productName: { fontSize: 14, fontWeight: '800' },
-  categoryText: { fontSize: 11, marginTop: 2 },
-  priceText: { fontSize: 13, fontWeight: '900', marginTop: 4 },
-  cardRight: { alignItems: 'flex-end', gap: 8 },
-  cardActions: { flexDirection: 'row', gap: 8 },
-  cardActionBtn: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  iconBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  badgeContainer: { position: 'absolute', top: -4, right: -4, borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
+  badgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  addBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  list: { paddingHorizontal: 24, paddingBottom: 110, paddingTop: 8 },
+  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
+  cardInfo: { flex: 1, gap: 6 },
+  cardTitle: { fontSize: 16, fontWeight: 'bold' },
+  cardPrice: { fontSize: 14, fontWeight: '800' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  retryBtn: { marginTop: 12, padding: 10, borderWidth: 1, borderRadius: 8 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, minHeight: 300 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
+  filterLabel: { fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12, marginTop: 16 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
+  applyBtn: { marginTop: 32, padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 20 },
+  applyBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
 });

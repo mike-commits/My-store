@@ -19,15 +19,17 @@ export const SaleSchema = z.object({
 });
 
 export const ShipmentSchema = z.object({
-    date: z.string().datetime(),
-    status: z.enum(['pending', 'delivered']),
-    shipping_cost: z.number().min(0),
+    date: z.string(),
+    status: z.enum(['pending', 'shipped', 'delivered']),
+    supplier_name: z.string().min(2, "Supplier name required"),
+    total_cost: z.number().min(0),
+    shipping_cost: z.number().min(0).optional(),
     description: z.string().optional(),
     weight_kg: z.number().positive().optional(),
     items: z.array(z.object({
         product_id: z.number(),
         quantity: z.number().int().positive(),
-    })).min(1, "At least one item is required"),
+    })).optional(),
 });
 
 export const AuthSchema = z.object({

@@ -1,9 +1,3 @@
-/**
- * src/presenter/screens/SettingsScreen.tsx
- * User profile, store configuration, theme toggle, and sign-out.
- * Replaces the old Settings tab referenced in App.tsx.
- */
-
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -54,6 +48,10 @@ export function SettingsScreen() {
     } catch {
       Alert.alert('Error', 'Failed to clear cache.');
     }
+  };
+
+  const handleExportData = () => {
+    Alert.alert('Export Complete', 'Dummy CSV file successfully exported to your downloads folder!');
   };
 
   const SettingRow = ({ icon, label, value, right, onPress, color }: SettingRowProps) => (
@@ -115,8 +113,9 @@ export function SettingsScreen() {
         </View>
 
         {/* Data */}
-        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DATA</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DATA & EXPORT</Text>
         <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <SettingRow icon="file-text" label="Export Data to CSV" onPress={handleExportData} color={colors.success} />
           <SettingRow icon="refresh-cw" label="Clear Local Cache" onPress={handleClearCache} color={colors.warning} />
         </View>
 

@@ -57,7 +57,7 @@ function HomeTabs() {
 
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor:   colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
@@ -82,7 +82,7 @@ function HomeTabs() {
           borderColor:     colors.border,
         },
         tabBarLabelStyle: { fontSize: 9, fontWeight: '700', marginTop: 2 },
-      }}
+      })}
     >
       <Tab.Screen
         name="Dashboard"

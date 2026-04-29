@@ -9,9 +9,10 @@ interface ButtonProps {
     type?: 'primary' | 'secondary' | 'outline' | 'ghost';
     style?: StyleProp<ViewStyle>;
     textStyle?: StyleProp<TextStyle>;
+    disabled?: boolean;
 }
 
-export const AppButton = ({ title, onPress, type = 'primary', style, textStyle }: ButtonProps) => {
+export const AppButton = ({ title, onPress, type = 'primary', style, textStyle, disabled }: ButtonProps) => {
     const { colors } = useAppTheme();
 
     const getButtonStyle = () => {
@@ -32,7 +33,11 @@ export const AppButton = ({ title, onPress, type = 'primary', style, textStyle }
     };
 
     return (
-        <TouchableOpacity style={[styles.button, getButtonStyle(), style]} onPress={onPress}>
+        <TouchableOpacity 
+            style={[styles.button, getButtonStyle(), style, disabled && { opacity: 0.5 }]} 
+            onPress={disabled ? undefined : onPress}
+            disabled={disabled}
+        >
             <Text style={[styles.text, getTextStyle(), textStyle]}>{title}</Text>
         </TouchableOpacity>
     );
