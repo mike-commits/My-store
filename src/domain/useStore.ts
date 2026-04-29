@@ -28,6 +28,7 @@ const notifyListeners = () => listeners.forEach(l => l());
 export const useStore = () => {
     const [, setDummy] = useState({});
     const [loading, setLoading] = useState(false);
+    const [error,   setError]   = useState<string | null>(null);
     const forceUpdate = useCallback(() => setDummy({}), []);
 
     const checkLowStock = useCallback(async (products: Product[]) => {
@@ -43,9 +44,9 @@ export const useStore = () => {
         }
     }, []);
 
-    const refreshAll = useCallback(async () => {
         try {
             setLoading(true);
+            setError(null);
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 // Try to load from cache if offline
@@ -80,9 +81,9 @@ export const useStore = () => {
             checkLowStock(products);
             
             notifyListeners();
-        } catch (error) {
+        } catch (error: any) {
             console.error('[STORE] Refresh failed:', error);
-            // Fallback to cache on error
+            setError(error.message || 'Failed to sync data');
             const cached = await offlineService.getCachedProducts();
             if (cached.length > 0) globalProducts = cached;
             notifyListeners();
@@ -242,6 +243,7 @@ export const useStore = () => {
     return {
         stats,
         loading,
+        error,
         refreshAll,
         products: globalProducts,
         shipments: globalShipments,

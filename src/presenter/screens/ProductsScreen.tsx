@@ -8,7 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import { useAppTheme }   from '../../core/contexts/ThemeContext';
-import { useSupabaseQuery } from '../../core/hooks/useSupabaseQuery';
+import { useStore }      from '../../domain/useStore';
 import { supabase } from '../../data/supabase';
 import { SkeletonCard } from '../../core/components/SkeletonCard';
 import { EmptyState } from '../../core/components/EmptyState';
@@ -20,7 +20,7 @@ type SortOption = 'nameAsc' | 'priceDesc' | 'stockAsc';
 export function ProductsScreen() {
   const { colors } = useAppTheme();
   const navigation = useNavigation<any>();
-  const { products, loading, refreshAll } = useStore();
+  const { products, loading, error, refreshAll } = useStore();
   
   const [filterModal, setFilterModal] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('nameAsc');
@@ -91,7 +91,7 @@ export function ProductsScreen() {
         <View style={styles.list}>
           {[...Array(6)].map((_, i) => <SkeletonCard key={i} height={90} style={{ marginBottom: 12 }} />)}
         </View>
-      ) : null ? ( // Simplified as useStore manages error internally via console or we can add it
+      ) : error ? ( 
         <View style={styles.center}>
           <Text style={{ color: colors.error }}>Failed to load products</Text>
           <TouchableOpacity onPress={refreshAll} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.text }}>Retry</Text></TouchableOpacity>
