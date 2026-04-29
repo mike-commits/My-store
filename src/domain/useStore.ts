@@ -44,6 +44,7 @@ export const useStore = () => {
         }
     }, []);
 
+    const refreshAll = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
