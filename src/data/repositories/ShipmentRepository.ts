@@ -42,15 +42,17 @@ export class ShipmentRepository {
         }));
     }
 
-    async addShipment(date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], shippingCost: number = 0, description?: string, weightKg?: number) {
+    async addShipment(date: string, status: string, items: Omit<ShipmentItem, 'id' | 'shipment_id'>[], userId: string, totalCost: number = 0, shippingCost: number = 0, description?: string, weightKg?: number) {
         const { data: shipment, error: sError } = await supabase
             .from('shipments')
             .insert([{ 
                 date, 
                 status, 
+                total_cost: totalCost,
                 shipping_cost: shippingCost, 
                 description: description || null, 
-                weight_kg: weightKg || null 
+                weight_kg: weightKg || null,
+                user_id: userId
             }])
             .select()
             .single();

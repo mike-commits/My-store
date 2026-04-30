@@ -44,23 +44,30 @@ export class ProductRepository {
     }
 
     async updateProduct(product: Product) {
-        const { id, name, category, buy_price, sell_price, quantity, date, notes, user_id } = product as any;
+        const { id, name, category, buy_price, sell_price, quantity, date, notes, image_url, user_id } = product as any;
+        
+        // Build update object only with defined values to avoid RLS issues with user_id
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (category !== undefined) updateData.category = category;
+        if (buy_price !== undefined) updateData.buy_price = buy_price;
+        if (sell_price !== undefined) updateData.sell_price = sell_price;
+        if (quantity !== undefined) updateData.quantity = quantity;
+        if (date !== undefined) updateData.date = date;
+        if (notes !== undefined) updateData.notes = notes;
+        if (image_url !== undefined) updateData.image_url = image_url;
+        if (user_id !== undefined) updateData.user_id = user_id;
+
         const { error } = await supabase
             .from('products')
-            .update({ name, category, buy_price, sell_price, quantity, date, notes, user_id })
+            .update(updateData)
             .eq('id', id);
         
         if (error) throw error;
     }
 
     async deleteProduct(id: number) {
-        // First delete dependent items to satisfy foreign key constraints
-        const { error: sError } = await supabase.from('sales').delete().eq('product_id', id);
-        if (sError) console.error('Error deleting product sales:', sError);
-        
-        const { error: iError } = await supabase.from('shipment_items').delete().eq('product_id', id);
-        if (iError) console.error('Error deleting product shipment items:', iError);
-        
+        // Dependent items (sales, shipment_items) are handled by ON DELETE CASCADE in the DB
         const { error } = await supabase.from('products').delete().eq('id', id);
         if (error) throw error;
     }

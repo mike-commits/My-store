@@ -129,15 +129,7 @@ export const useStore = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Auth required");
         
-        const { error } = await supabase.from('shipments').insert([{
-            supplier_name: supplierName,
-            total_cost: totalCost,
-            date,
-            status,
-            user_id: user.id
-        }]);
-        
-        if (error) throw error;
+        await shipmentRepo.addShipment(date, status, [], user.id, totalCost, 0, `Supplier: ${supplierName}`);
         await refreshAll();
     };
 

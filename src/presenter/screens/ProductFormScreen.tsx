@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  Alert, ScrollView, ActivityIndicator, Image,
+  Alert, ScrollView, ActivityIndicator, Image, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -26,6 +26,20 @@ const CATEGORIES = [
   'Clothing (Men)', 'Clothing (Women)', 'Clothing (Kids)',
   'Jewelry', 'Accessories', 'Others',
 ];
+
+const Field = ({ label, value, onChangeText, error, colors, numeric = false, placeholder = '' }:
+  { label: string; value: string; onChangeText: (t: string) => void; error?: string; colors: any; numeric?: boolean; placeholder?: string }) => (
+  <View style={styles.fieldGroup}>
+    <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
+    <TextInput
+      style={[styles.input, { borderColor: error ? colors.error : colors.border, color: colors.text }]}
+      value={value} onChangeText={onChangeText}
+      keyboardType={numeric ? 'numeric' : 'default'}
+      placeholder={placeholder} placeholderTextColor={colors.textMuted}
+    />
+    {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
+  </View>
+);
 
 export function ProductFormScreen({ route, navigation }: any) {
   const productId: number | undefined = route?.params?.productId;
@@ -106,28 +120,20 @@ export function ProductFormScreen({ route, navigation }: any) {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Product', 'This will also delete all sales for this product. Continue?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
+    const performDelete = async () => {
         await deleteProduct(productId!);
         navigation.goBack();
-      }},
-    ]);
-  };
+    };
 
-  const Field = ({ label, value, onChangeText, error, numeric = false, placeholder = '' }:
-    { label: string; value: string; onChangeText: (t: string) => void; error?: string; numeric?: boolean; placeholder?: string }) => (
-    <View style={styles.fieldGroup}>
-      <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
-      <TextInput
-        style={[styles.input, { borderColor: error ? colors.error : colors.border, color: colors.text }]}
-        value={value} onChangeText={onChangeText}
-        keyboardType={numeric ? 'numeric' : 'default'}
-        placeholder={placeholder} placeholderTextColor={colors.textMuted}
-      />
-      {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
-    </View>
-  );
+    if (Platform.OS === 'web') {
+        if (window.confirm('Delete Product? This will also delete all sales for this product.')) performDelete();
+    } else {
+        Alert.alert('Delete Product', 'This will also delete all sales for this product. Continue?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: performDelete },
+        ]);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -155,14 +161,14 @@ export function ProductFormScreen({ route, navigation }: any) {
           }
         </TouchableOpacity>
 
-        <Field label="PRODUCT NAME *"    value={name}      onChangeText={setName}      error={errors.name}      placeholder="e.g. Nike Air Max" />
+        <Field label="PRODUCT NAME *" value={name} onChangeText={setName} error={errors.name} colors={colors} placeholder="e.g. Nike Air Max" />
         <CategoryPicker value={category} onSelect={setCategory} categories={CATEGORIES} />
         <View style={styles.row}>
-          <View style={{ flex: 1 }}><Field label="BUY PRICE *"  value={buyPrice}  onChangeText={setBuyPrice}  error={errors.buyPrice}  numeric placeholder="0.00" /></View>
-          <View style={{ flex: 1 }}><Field label="SELL PRICE *" value={sellPrice} onChangeText={setSellPrice} error={errors.sellPrice} numeric placeholder="0.00" /></View>
+          <View style={{ flex: 1 }}><Field label="BUY PRICE *" value={buyPrice} onChangeText={setBuyPrice} error={errors.buyPrice} colors={colors} numeric placeholder="0.00" /></View>
+          <View style={{ flex: 1 }}><Field label="SELL PRICE *" value={sellPrice} onChangeText={setSellPrice} error={errors.sellPrice} colors={colors} numeric placeholder="0.00" /></View>
         </View>
-        <Field label="QUANTITY *" value={quantity} onChangeText={setQuantity} error={errors.quantity} numeric placeholder="0" />
-        <Field label="NOTES"      value={notes}    onChangeText={setNotes}    placeholder="Optional notes…" />
+        <Field label="QUANTITY *" value={quantity} onChangeText={setQuantity} error={errors.quantity} colors={colors} numeric placeholder="0" />
+        <Field label="NOTES" value={notes} onChangeText={setNotes} colors={colors} placeholder="Optional notes…" />
 
         <AppButton title={saving ? 'Saving…' : 'Save Product'} onPress={handleSave} style={{ marginTop: 20 }} />
         <View style={{ height: 80 }} />
