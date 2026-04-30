@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Modal, Alert, TextInput,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { useStore }      from '../../domain/useStore';
 import { Product }       from '../../domain/models';
@@ -18,10 +19,10 @@ interface CartItem {
   product: Product;
   quantity: number;
 }
-
 export function SalesScreen() {
   const { products, addSale } = useStore();
   const { colors } = useAppTheme();
+  const route = useRoute<any>();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,6 +47,15 @@ export function SalesScreen() {
       return [...prev, { product, quantity: 1 }];
     });
   };
+
+  // Handle pre-selection
+  useEffect(() => {
+    const preId = route.params?.preSelectedId;
+    if (preId) {
+      const p = products.find(prod => prod.id === preId);
+      if (p) addToCart(p);
+    }
+  }, [route.params?.preSelectedId, products]);
 
   const updateQuantity = (productId: number, delta: number) => {
     setCart(prev => {

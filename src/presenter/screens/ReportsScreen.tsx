@@ -285,7 +285,13 @@ export function ReportsScreen() {
           <>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 28, marginBottom: 14 }}>
               <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>Sales History</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Sales')}><Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>New Sale</Text></TouchableOpacity>
+              <TouchableOpacity 
+                style={{ backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                onPress={() => navigation.navigate('Sales')}
+              >
+                <Feather name="plus" size={14} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>Add Sale</Text>
+              </TouchableOpacity>
             </View>
             {sales.slice(0, 5).map(s => (
               <View key={s.id} style={[styles.listRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>

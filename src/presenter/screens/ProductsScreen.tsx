@@ -56,7 +56,16 @@ export function ProductsScreen() {
         <Text style={[styles.cardPrice, { color: colors.primary }]}>SSP {item.sell_price.toLocaleString()}</Text>
         <StockBadge qty={item.quantity} />
       </View>
-      <Feather name="chevron-right" size={20} color={colors.textMuted} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <TouchableOpacity 
+          style={[styles.sellBtn, { backgroundColor: colors.success + '20', borderColor: colors.success }]}
+          onPress={() => navigation.navigate('Sales', { preSelectedId: item.id })}
+        >
+          <Feather name="shopping-cart" size={16} color={colors.success} />
+          <Text style={{ color: colors.success, fontWeight: '700', fontSize: 12 }}>Sell</Text>
+        </TouchableOpacity>
+        <Feather name="chevron-right" size={20} color={colors.textMuted} />
+      </View>
     </TouchableOpacity>
   );
 
@@ -196,5 +205,6 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1 },
   applyBtn: { marginTop: 32, padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 20 },
-  applyBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+  applyBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  sellBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 }
 });
