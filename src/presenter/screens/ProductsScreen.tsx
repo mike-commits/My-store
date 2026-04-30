@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, RefreshControl,
@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useBottomTabPadding } from '../../core/hooks/useBottomTabPadding';
 
 import { useAppTheme }   from '../../core/contexts/ThemeContext';
 import { useStore }      from '../../domain/useStore';
@@ -21,7 +22,8 @@ export function ProductsScreen() {
   const { colors } = useAppTheme();
   const navigation = useNavigation<any>();
   const { products, loading, error, refreshAll } = useStore();
-  
+  const bottomPad = useBottomTabPadding();
+
   const [filterModal, setFilterModal] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('nameAsc');
   const [stockFilter, setStockFilter] = useState<'all' | 'inStock' | 'lowStock' | 'outOfStock'>('all');
@@ -70,7 +72,7 @@ export function ProductsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Products</Text>
@@ -110,7 +112,7 @@ export function ProductsScreen() {
           data={processedProducts}
           keyExtractor={item => item.id.toString()}
           renderItem={renderProduct}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: bottomPad }]}
           refreshControl={
             <RefreshControl refreshing={loading} onRefresh={refreshAll} tintColor={colors.primary} />
           }
@@ -190,7 +192,7 @@ const styles = StyleSheet.create({
   badgeContainer: { position: 'absolute', top: -4, right: -4, borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
   badgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
   addBtn: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  list: { paddingHorizontal: 24, paddingBottom: 110, paddingTop: 8 },
+  list: { paddingHorizontal: 24, paddingTop: 8 },
   card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
   cardInfo: { flex: 1, gap: 6 },
   cardTitle: { fontSize: 16, fontWeight: 'bold' },

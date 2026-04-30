@@ -12,6 +12,7 @@ import {
   Modal, TextInput, Alert, Platform, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
@@ -49,6 +50,7 @@ export function ReportsScreen() {
   } = useStore();
   const { colors, isDark } = useAppTheme();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const [range,        setRange]        = useState<DateRange>('month');
   const [refreshing,   setRefreshing]   = useState(false);
@@ -390,7 +392,7 @@ export function ReportsScreen() {
           </>
         )}
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: Math.max(insets.bottom, 24) + 80 }} />
       </ScrollView>
 
       {/* Payment modal */}

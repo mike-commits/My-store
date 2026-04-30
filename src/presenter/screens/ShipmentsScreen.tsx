@@ -17,6 +17,7 @@ import { Card }          from '../components/Card';
 import { AppButton }     from '../components/AppButton';
 import { FormLayout }    from '../components/FormLayout';
 import { ShipmentSchema } from '../../domain/validation';
+import { useBottomTabPadding } from '../../core/hooks/useBottomTabPadding';
 
 function statusColor(status: string) {
   if (status === 'shipped') return '#D97706';
@@ -27,6 +28,7 @@ function statusColor(status: string) {
 export function ShipmentsScreen() {
   const { addShipment, updateShipmentStatus, deleteShipment } = useStore();
   const { colors } = useAppTheme();
+  const bottomPad = useBottomTabPadding();
 
   const { data: shipmentsData, loading, error, refetch } = useSupabaseQuery<Shipment[]>(async () => {
     const { data, error } = await supabase.from('shipments').select('*').order('date', { ascending: false });
@@ -110,7 +112,7 @@ export function ShipmentsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <View>
           <Text style={[styles.headerAccent, { color: colors.primary }]}>LOGISTICS</Text>
@@ -133,7 +135,7 @@ export function ShipmentsScreen() {
           data={shipments}
           keyExtractor={s => s.id.toString()}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: bottomPad }]}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.primary} />}
           ListEmptyComponent={
             <EmptyState

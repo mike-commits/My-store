@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useBottomTabPadding } from '../../core/hooks/useBottomTabPadding';
 
 import { useStore }      from '../../domain/useStore';
 import { useAppTheme }   from '../../core/contexts/ThemeContext';
@@ -43,6 +43,7 @@ export function DashboardScreen() {
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const [productModalVisible, setProductModalVisible] = React.useState(false);
+  const bottomPad = useBottomTabPadding();
 
   // ── Realtime subscription ──────────────────────────────────
   useEffect(() => {
@@ -92,7 +93,7 @@ export function DashboardScreen() {
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header Redesign */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -191,7 +192,7 @@ export function DashboardScreen() {
           ))
         )}
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: bottomPad }} />
       </ScrollView>
 
       <QuickProductModal

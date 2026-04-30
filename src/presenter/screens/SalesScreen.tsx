@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useBottomTabPadding, TAB_BAR_HEIGHT } from '../../core/hooks/useBottomTabPadding';
 
 import { useStore }      from '../../domain/useStore';
 import { Product }       from '../../domain/models';
@@ -23,6 +24,7 @@ export function SalesScreen() {
   const { products, addSale } = useStore();
   const { colors } = useAppTheme();
   const route = useRoute<any>();
+  const bottomPad = useBottomTabPadding();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,7 +111,7 @@ export function SalesScreen() {
   }, [products, searchQuery]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -136,7 +138,7 @@ export function SalesScreen() {
             keyExtractor={p => p.id.toString()}
             numColumns={2}
             columnWrapperStyle={{ gap: 12 }}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            contentContainerStyle={{ paddingBottom: bottomPad }}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[styles.productCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: item.quantity === 0 ? 0.5 : 1 }]}
@@ -227,7 +229,7 @@ const styles = StyleSheet.create({
   pName:          { fontSize: 13, fontWeight: '700', marginBottom: 6 },
   pPrice:         { fontSize: 14, fontWeight: '900', marginBottom: 4 },
   pStock:         { fontSize: 10, fontWeight: '600' },
-  floatingCart:   { position: 'absolute', bottom: 100, left: 24, right: 24, borderRadius: 20, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', elevation: 10, shadowOpacity: 0.2, shadowRadius: 10 },
+  floatingCart:   { position: 'absolute', bottom: TAB_BAR_HEIGHT + 12, left: 24, right: 24, borderRadius: 20, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center', elevation: 10, shadowOpacity: 0.2, shadowRadius: 10 },
   cartSummaryText:{ fontSize: 12, fontWeight: '700', marginBottom: 2 },
   cartSummaryTotal:{ fontSize: 18, fontWeight: '900' },
   checkoutBtn:    { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },

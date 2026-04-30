@@ -15,10 +15,12 @@ import { Card }          from '../components/Card';
 import { AppButton }     from '../components/AppButton';
 import { FormLayout }    from '../components/FormLayout';
 import { SearchBar }     from '../components/SearchBar';
+import { useBottomTabPadding } from '../../core/hooks/useBottomTabPadding';
 
 export function CustomersScreen() {
   const { customers, addCustomer, updateCustomer, deleteCustomer, loading, refreshAll } = useStore();
   const { colors, isDark } = useAppTheme();
+  const bottomPad = useBottomTabPadding();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,7 +94,7 @@ export function CustomersScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <View>
           <Text style={[styles.headerAccent, { color: colors.primary }]}>CRM</Text>
@@ -109,7 +111,7 @@ export function CustomersScreen() {
         data={loading ? [] : filtered}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: bottomPad }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         ListEmptyComponent={!loading ? <EmptyState icon="users" title="No customers found" subtitle="Add your first customer to track their purchase history." /> : null}
       />
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
   headerAccent: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 4 },
   title: { fontSize: 26, fontWeight: '900' },
   addBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  list: { paddingHorizontal: 24, paddingBottom: 120 },
+  list: { paddingHorizontal: 24 },
   card: { marginBottom: 12, padding: 16 },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
