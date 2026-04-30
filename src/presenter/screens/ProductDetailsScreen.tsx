@@ -35,18 +35,27 @@ export function ProductDetailsScreen() {
   [productSales]);
 
   const handleDelete = () => {
-    Alert.alert('Delete Product', 'Are you sure? This will remove all inventory records for this item.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await deleteProduct(productId);
-            navigation.goBack();
-          } catch (e: any) {
-            console.error('Delete product failed:', e);
-            Alert.alert('Error', e.message || 'Failed to delete product. It might be linked to other records.');
-          }
-      }},
-    ]);
+    const performDelete = async () => {
+      try {
+        await deleteProduct(productId);
+        navigation.goBack();
+      } catch (e: any) {
+        console.error('Delete product failed:', e);
+        if (Platform.OS === 'web') window.alert('Error: ' + (e.message || 'Failed to delete product'));
+        else Alert.alert('Error', e.message || 'Failed to delete product. It might be linked to other records.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete Product? Are you sure? This will remove all inventory records for this item.')) {
+        performDelete();
+      }
+    } else {
+      Alert.alert('Delete Product', 'Are you sure? This will remove all inventory records for this item.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ]);
+    }
   };
 
   if (!product) {

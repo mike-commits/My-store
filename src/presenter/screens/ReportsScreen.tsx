@@ -167,7 +167,9 @@ export function ReportsScreen() {
 
   const confirmDelete = (label: string, onConfirm: () => Promise<void>) => {
     if (Platform.OS === 'web') {
-      if (window.confirm(`Delete this ${label}?`)) onConfirm().catch(e => Alert.alert('Error', e.message));
+      if (window.confirm(`Delete this ${label}?`)) {
+        onConfirm().catch(e => window.alert('Error: ' + e.message));
+      }
     } else {
       Alert.alert(`Delete ${label}`, 'Are you sure?', [
         { text: 'Cancel', style: 'cancel' },
