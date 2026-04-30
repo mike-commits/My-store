@@ -12,10 +12,10 @@ export class PaymentRepository {
         return data || [];
     }
 
-    async addPayment(amount: number, date: string, notes: string, commission_fee: number = 0) {
+    async addPayment(amount: number, date: string, notes: string, commission_fee: number = 0, userId: string) {
         const { error } = await supabase
             .from('payments')
-            .insert([{ amount, date, notes, commission_fee }]);
+            .insert([{ amount, date, notes, commission_fee, user_id: userId }]);
         if (error) throw error;
     }
 

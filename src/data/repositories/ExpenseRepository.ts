@@ -12,10 +12,10 @@ export class ExpenseRepository {
         return data || [];
     }
 
-    async addExpense(amount: number, date: string, description: string) {
+    async addExpense(amount: number, date: string, description: string, userId: string) {
         const { error } = await supabase
             .from('expenses')
-            .insert([{ amount, date, description }]);
+            .insert([{ amount, date, description, user_id: userId }]);
         if (error) throw error;
     }
 

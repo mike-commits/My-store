@@ -152,14 +152,18 @@ export const useStore = () => {
     };
 
     const addSale = async (productId: number, date: string, quantity: number, sellPrice: number) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Auth required");
         const product = globalProducts.find(p => p.id === productId);
         const buyPrice = product?.buy_price || 0;
-        await saleRepo.addSale(productId, date, quantity, buyPrice, sellPrice);
+        await saleRepo.addSale(productId, date, quantity, buyPrice, sellPrice, user.id);
         await refreshAll();
     };
 
     const addPayment = async (amount: number, date: string, notes: string, commissionFee: number = 0) => {
-        await paymentRepo.addPayment(amount, date, notes, commissionFee);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Auth required");
+        await paymentRepo.addPayment(amount, date, notes, commissionFee, user.id);
         await refreshAll();
     };
 
@@ -169,7 +173,9 @@ export const useStore = () => {
     };
 
     const addExpense = async (amount: number, description: string, date: string) => {
-        await expenseRepo.addExpense(amount, date, description);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Auth required");
+        await expenseRepo.addExpense(amount, date, description, user.id);
         await refreshAll();
     };
 
@@ -179,7 +185,9 @@ export const useStore = () => {
     };
 
     const addManualReport = async (title: string, content: string, date: string) => {
-        await reportRepo.addReport(title, content, date);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Auth required");
+        await reportRepo.addReport(title, content, date, user.id);
         await refreshAll();
     };
 

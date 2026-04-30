@@ -38,8 +38,13 @@ export function ProductDetailsScreen() {
     Alert.alert('Delete Product', 'Are you sure? This will remove all inventory records for this item.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-          await deleteProduct(productId);
-          navigation.goBack();
+          try {
+            await deleteProduct(productId);
+            navigation.goBack();
+          } catch (e: any) {
+            console.error('Delete product failed:', e);
+            Alert.alert('Error', e.message || 'Failed to delete product. It might be linked to other records.');
+          }
       }},
     ]);
   };

@@ -165,13 +165,19 @@ export function ReportsScreen() {
     } catch (e: unknown) { Alert.alert('Error', e instanceof Error ? e.message : 'Failed'); }
   };
 
-  const confirmDelete = (label: string, onConfirm: () => void) => {
+  const confirmDelete = (label: string, onConfirm: () => Promise<void>) => {
     if (Platform.OS === 'web') {
-      if (window.confirm(`Delete this ${label}?`)) onConfirm();
+      if (window.confirm(`Delete this ${label}?`)) onConfirm().catch(e => Alert.alert('Error', e.message));
     } else {
       Alert.alert(`Delete ${label}`, 'Are you sure?', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: onConfirm },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+            try {
+              await onConfirm();
+            } catch (e: any) {
+              Alert.alert('Error', e.message || `Failed to delete ${label}`);
+            }
+        }},
       ]);
     }
   };

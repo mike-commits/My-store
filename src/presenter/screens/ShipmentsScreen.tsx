@@ -82,7 +82,14 @@ export function ShipmentsScreen() {
           }}>
             <Feather name="edit-2" size={14} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => Alert.alert('Delete', 'Delete?', [{text:'Cancel'},{text:'Delete', onPress: async () => { await deleteShipment(item.id); refetch(); }}])}>
+          <TouchableOpacity onPress={() => Alert.alert('Delete', 'Delete?', [{text:'Cancel'},{text:'Delete', onPress: async () => { 
+            try {
+              await deleteShipment(item.id); 
+              refetch(); 
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to delete shipment');
+            }
+          }}])}>
             <Feather name="trash-2" size={14} color={colors.error} />
           </TouchableOpacity>
         </View>

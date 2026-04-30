@@ -12,10 +12,10 @@ export class ManualReportRepository {
         return data || [];
     }
 
-    async addReport(title: string, content: string, date: string) {
+    async addReport(title: string, content: string, date: string, userId: string) {
         const { error } = await supabase
             .from('manual_reports')
-            .insert([{ date, title, content }]);
+            .insert([{ date, title, content, user_id: userId }]);
         if (error) throw error;
     }
 

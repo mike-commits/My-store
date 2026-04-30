@@ -30,10 +30,10 @@ export class SaleRepository {
         return data;
     }
 
-    async addSale(productId: number, date: string, quantity: number, buyPrice: number, sellPrice: number) {
+    async addSale(productId: number, date: string, quantity: number, buyPrice: number, sellPrice: number, userId: string) {
         const { error: sError } = await supabase
             .from('sales')
-            .insert([{ product_id: productId, date, quantity, buy_price: buyPrice, sell_price: sellPrice }]);
+            .insert([{ product_id: productId, date, quantity, buy_price: buyPrice, sell_price: sellPrice, user_id: userId }]);
         
         if (sError) throw sError;
 
