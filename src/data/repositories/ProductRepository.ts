@@ -5,19 +5,11 @@ export class ProductRepository {
     async getProducts(): Promise<Product[]> {
         const { data, error } = await supabase
             .from('products')
-            .select(`
-                *,
-                shipment_items (quantity),
-                sales (quantity)
-            `);
+            .select('*')
+            .order('name', { ascending: true });
         
         if (error) throw error;
-        
-        return (data || []).map((p: any) => ({
-            ...p,
-            shipped_quantity: p.shipment_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0,
-            sold_quantity: p.sales?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0
-        }));
+        return data || [];
     }
 
     async getProduct(id: number): Promise<Product | null> {
