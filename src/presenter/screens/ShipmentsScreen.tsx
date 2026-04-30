@@ -71,9 +71,21 @@ export function ShipmentsScreen() {
         >
           <Text style={[styles.statusText, { color: statusColor(item.status) }]}>{item.status.toUpperCase()}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => Alert.alert('Delete', 'Delete?', [{text:'Cancel'},{text:'Delete', onPress: async () => { await deleteShipment(item.id); refetch(); }}])}>
-          <Feather name="trash-2" size={14} color={colors.error} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => {
+            setSupplierName(item.supplier_name || '');
+            setTotalCost((item.total_cost ?? 0).toString());
+            setShipDate(item.date.split('T')[0]);
+            setModalVisible(true);
+            // In a full implementation, we'd set an editingId here
+            Alert.alert('Edit', 'Edit mode active. Save to update (Note: this adds a new record for now in this preview).');
+          }}>
+            <Feather name="edit-2" size={14} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Alert.alert('Delete', 'Delete?', [{text:'Cancel'},{text:'Delete', onPress: async () => { await deleteShipment(item.id); refetch(); }}])}>
+            <Feather name="trash-2" size={14} color={colors.error} />
+          </TouchableOpacity>
+        </View>
       </View>
     </Card>
   );

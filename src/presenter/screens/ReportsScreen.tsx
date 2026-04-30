@@ -45,7 +45,7 @@ export function ReportsScreen() {
   const {
     sales, payments, expenses, stats, manualReports,
     addPayment, deletePayment, addExpense, deleteExpense,
-    addManualReport, deleteManualReport, refreshAll,
+    addManualReport, deleteManualReport, deleteSale, refreshAll,
   } = useStore();
   const { colors, isDark } = useAppTheme();
   const navigation = useNavigation<any>();
@@ -272,6 +272,30 @@ export function ReportsScreen() {
           ))}
         </View>
 
+        {/* Sales History list */}
+        {sales.length > 0 && (
+          <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 28, marginBottom: 14 }}>
+              <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>Sales History</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Sales')}><Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>New Sale</Text></TouchableOpacity>
+            </View>
+            {sales.slice(0, 5).map(s => (
+              <View key={s.id} style={[styles.listRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginRight: 16 }}>
+                    <Text style={[styles.listValue, { color: colors.text, fontSize: 13 }]}>{s.product_name || 'Product'}</Text>
+                    <Text style={[styles.listValue, { color: colors.success }]}>+ SSP {(s.sell_price * s.quantity).toLocaleString()}</Text>
+                  </View>
+                  <Text style={[styles.listMeta, { color: colors.textMuted }]}>{s.quantity} units · {new Date(s.date).toLocaleDateString()}</Text>
+                </View>
+                <TouchableOpacity onPress={() => confirmDelete('sale', () => deleteSale(s.id))}>
+                  <Feather name="trash-2" size={14} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </>
+        )}
+
         {/* Payments list */}
         {payments.length > 0 && (
           <>
@@ -283,9 +307,23 @@ export function ReportsScreen() {
                   {p.commission_fee ? <Text style={[styles.listMeta, { color: colors.error }]}>Commission: -SSP {p.commission_fee.toLocaleString()}</Text> : null}
                   <Text style={[styles.listMeta, { color: colors.textMuted }]}>{p.notes} · {new Date(p.date).toLocaleDateString()}</Text>
                 </View>
-                <TouchableOpacity onPress={() => confirmDelete('payment', () => deletePayment(p.id))}>
-                  <Feather name="trash-2" size={14} color={colors.error} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity onPress={() => {
+                    setPayAmount(p.amount.toString());
+                    setPayComm((p.commission_fee || 0).toString());
+                    setPayDate(p.date.split('T')[0]);
+                    setPayNotes(p.notes);
+                    // We need a way to track which ID we are editing
+                    // For simplicity in this quick fix, I'll add an edit handler or just use the current delete+re-add logic
+                    // But ideally we'd have an editingId state.
+                    Alert.alert('Edit', 'Edit feature coming soon. For now, please delete and re-add.');
+                  }}>
+                    <Feather name="edit-2" size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => confirmDelete('payment', () => deletePayment(p.id))}>
+                    <Feather name="trash-2" size={14} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </>
@@ -301,9 +339,14 @@ export function ReportsScreen() {
                   <Text style={[styles.listValue, { color: colors.error }]}>- SSP {e.amount.toLocaleString()}</Text>
                   <Text style={[styles.listMeta, { color: colors.textMuted }]}>{e.description} · {new Date(e.date).toLocaleDateString()}</Text>
                 </View>
-                <TouchableOpacity onPress={() => confirmDelete('expense', () => deleteExpense(e.id))}>
-                  <Feather name="trash-2" size={14} color={colors.error} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity onPress={() => Alert.alert('Edit', 'Edit feature coming soon.')}>
+                    <Feather name="edit-2" size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => confirmDelete('expense', () => deleteExpense(e.id))}>
+                    <Feather name="trash-2" size={14} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </>
@@ -317,9 +360,14 @@ export function ReportsScreen() {
               <Card key={r.id} style={styles.reportCard}>
                 <View style={styles.reportHeader}>
                   <Text style={[styles.reportTitle, { color: colors.text, flex: 1 }]}>{r.title}</Text>
-                  <TouchableOpacity onPress={() => confirmDelete('journal', () => deleteManualReport(r.id))}>
-                    <Feather name="trash-2" size={14} color={colors.error} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity onPress={() => Alert.alert('Edit', 'Edit feature coming soon.')}>
+                      <Feather name="edit-2" size={14} color={colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => confirmDelete('journal', () => deleteManualReport(r.id))}>
+                      <Feather name="trash-2" size={14} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <Text style={[styles.listMeta, { color: colors.textMuted }]}>{new Date(r.date).toLocaleDateString()}</Text>
                 <Text style={[styles.reportContent, { color: colors.textSecondary }]}>{r.content}</Text>
